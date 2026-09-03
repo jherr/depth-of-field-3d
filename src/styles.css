@@ -462,3 +462,466 @@ a {
   }
 }
 
+
+/* ==========================================================================
+   Depth of field simulator
+   ==========================================================================
+
+   Two visual registers on purpose:
+
+   - Chrome (`.sim-*`) picks up the site's tokens, so panels, sliders and
+     tables match the rest of the app in both light and dark mode.
+   - The in-camera overlay (`.hud-*`) is deliberately NEUTRAL -- greys, white
+     and amber, never the teal. A tinted overlay sitting on top of the
+     photograph would bias your judgement of the image's own colour, which
+     defeats the purpose of a tool photographers are supposed to trust.
+   ========================================================================== */
+
+@theme {
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+}
+
+.sim-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-base);
+  color: var(--sea-ink);
+}
+
+.sim-topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 0 0 auto;
+  padding: 0.5rem 0.9rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--header-bg);
+  backdrop-filter: blur(10px);
+}
+
+.sim-title {
+  font-family: "Fraunces", Georgia, serif;
+  font-weight: 700;
+  font-size: 0.98rem;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.sim-body {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+
+.sim-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  background: #0b0d10;
+  overflow: hidden;
+}
+
+.sim-stage canvas {
+  display: block;
+  touch-action: none;
+}
+
+.sim-side {
+  flex: 0 0 20rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-left: 1px solid var(--line);
+  background: var(--surface-strong);
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+@media (max-width: 900px) {
+  .sim-body {
+    flex-direction: column;
+  }
+  .sim-side {
+    flex: 0 0 auto;
+    max-height: 45%;
+    border-left: none;
+    border-top: 1px solid var(--line);
+  }
+}
+
+.sim-group {
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  background: var(--surface);
+  padding: 0.7rem 0.75rem;
+}
+
+.sim-group-title {
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--kicker);
+  margin-bottom: 0.55rem;
+}
+
+.sim-field {
+  display: block;
+  margin-bottom: 0.6rem;
+}
+.sim-field:last-child {
+  margin-bottom: 0;
+}
+
+.sim-field-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.2rem;
+}
+
+.sim-label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--sea-ink-soft);
+}
+
+.sim-value {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.sim-hint {
+  font-size: 0.66rem;
+  color: var(--sea-ink-soft);
+  opacity: 0.85;
+  margin-top: 0.15rem;
+  line-height: 1.35;
+}
+
+/* The scaffold had no range-input styling at all. */
+.sim-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 1.25rem;
+  background: transparent;
+  cursor: pointer;
+}
+.sim-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.sim-range::-webkit-slider-runnable-track {
+  height: 0.3rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--lagoon-deep), var(--lagoon));
+  border: 1px solid var(--chip-line);
+}
+.sim-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1rem;
+  height: 1rem;
+  margin-top: -0.37rem;
+  border-radius: 999px;
+  background: var(--foam);
+  border: 2px solid var(--lagoon-deep);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+}
+.sim-range::-moz-range-track {
+  height: 0.3rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--lagoon-deep), var(--lagoon));
+}
+.sim-range::-moz-range-thumb {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  background: var(--foam);
+  border: 2px solid var(--lagoon-deep);
+}
+.sim-range:focus-visible {
+  outline: 2px solid var(--lagoon-deep);
+  outline-offset: 3px;
+  border-radius: 999px;
+}
+
+.sim-select {
+  width: 100%;
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.34rem 0.5rem;
+  border-radius: 0.45rem;
+  border: 1px solid var(--chip-line);
+  background: var(--chip-bg);
+  color: var(--sea-ink);
+}
+
+.sim-seg {
+  display: inline-flex;
+  padding: 0.12rem;
+  gap: 0.12rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--chip-line);
+  background: var(--chip-bg);
+}
+
+.sim-seg > button {
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.24rem 0.6rem;
+  border-radius: 0.38rem;
+  border: none;
+  background: transparent;
+  color: var(--sea-ink-soft);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sim-seg > button[aria-pressed='true'] {
+  background: var(--lagoon-deep);
+  color: #f6fffd;
+}
+.sim-seg > button:hover:not([aria-pressed='true']) {
+  background: var(--link-bg-hover);
+}
+
+.sim-btn {
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.3rem 0.62rem;
+  border-radius: 0.45rem;
+  border: 1px solid var(--chip-line);
+  background: var(--chip-bg);
+  color: var(--sea-ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sim-btn:hover {
+  background: var(--link-bg-hover);
+}
+
+.sim-check {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.74rem;
+  color: var(--sea-ink-soft);
+  cursor: pointer;
+  padding: 0.12rem 0;
+}
+.sim-check input {
+  accent-color: var(--lagoon-deep);
+}
+
+.sim-readout {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 0.75rem;
+}
+.sim-readout th {
+  width: 58%;
+}
+.sim-readout th,
+.sim-readout td {
+  padding: 0.2rem 0;
+  text-align: left;
+  vertical-align: baseline;
+}
+.sim-readout th {
+  font-weight: 500;
+  color: var(--sea-ink-soft);
+}
+.sim-readout td {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+.sim-readout tr.is-emphasis td {
+  color: var(--palm);
+}
+.sim-readout tr.is-warning td {
+  color: #b4531f;
+}
+:root[data-theme='dark'] .sim-readout tr.is-warning td {
+  color: #ffab73;
+}
+
+.sim-swatch {
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 2px;
+  margin-right: 0.35rem;
+  vertical-align: baseline;
+}
+
+/* -------------------------------------------------------------------------
+   In-camera overlay. Neutral by design; see the note at the top.
+   ------------------------------------------------------------------------- */
+
+.hud-root {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font-family: var(--font-mono);
+  color: #f4f4f2;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-frame {
+  position: absolute;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.hud-thirds {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(
+      to right,
+      transparent 33.333%,
+      rgba(255, 255, 255, 0.13) 33.333%,
+      rgba(255, 255, 255, 0.13) calc(33.333% + 1px),
+      transparent calc(33.333% + 1px),
+      transparent 66.666%,
+      rgba(255, 255, 255, 0.13) 66.666%,
+      rgba(255, 255, 255, 0.13) calc(66.666% + 1px),
+      transparent calc(66.666% + 1px)
+    ),
+    linear-gradient(
+      to bottom,
+      transparent 33.333%,
+      rgba(255, 255, 255, 0.13) 33.333%,
+      rgba(255, 255, 255, 0.13) calc(33.333% + 1px),
+      transparent calc(33.333% + 1px),
+      transparent 66.666%,
+      rgba(255, 255, 255, 0.13) 66.666%,
+      rgba(255, 255, 255, 0.13) calc(66.666% + 1px),
+      transparent calc(66.666% + 1px)
+    );
+}
+
+.hud-corner {
+  position: absolute;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+}
+
+.hud-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.hud-bar.is-top {
+  top: 0;
+}
+.hud-bar.is-bottom {
+  bottom: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  flex-wrap: wrap;
+  gap: 0.15rem 1rem;
+}
+
+.hud-rec {
+  color: #ff5a4d;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.hud-spacer {
+  flex: 1 1 auto;
+}
+
+.hud-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.28rem;
+  white-space: nowrap;
+}
+.hud-item > span:first-child {
+  font-size: 0.62rem;
+  font-weight: 600;
+  opacity: 0.7;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hud-warn {
+  color: #ffc14d;
+}
+
+.hud-badge {
+  align-self: flex-start;
+  padding: 0.2rem 0.45rem;
+  border-radius: 0.3rem;
+  background: rgba(180, 60, 20, 0.82);
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.hud-focus-mark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 3.2rem;
+  height: 3.2rem;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 2px;
+}
+
+.sim-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #cfd6dc;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sim-probe {
+  position: absolute;
+  left: 0.5rem;
+  bottom: 2.6rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 0.4rem;
+  background: rgba(8, 10, 12, 0.82);
+  color: #e8edf1;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  line-height: 1.5;
+  pointer-events: none;
+  white-space: pre;
+}
+.sim-probe .is-bad {
+  color: #ff8a7a;
+}
+.sim-probe .is-good {
+  color: #86e5a0;
+}
