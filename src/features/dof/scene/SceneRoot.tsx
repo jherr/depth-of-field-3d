@@ -8,6 +8,7 @@ import { PropView } from './PropView.tsx'
 import type { DofBandInfo } from './PropView.tsx'
 import { Room } from './props/Room.tsx'
 import { useDragOnFloor } from './useDragOnFloor.ts'
+import { useRotateOnFloor } from './useRotateOnFloor.ts'
 
 /**
  * Builds the scene graph from scene data.
@@ -103,6 +104,14 @@ function DraggableProp({
     currentPosition: prop.transform.position,
   })
 
+  const rotateHandlers = useRotateOnFloor({
+    propId: prop.id,
+    enabled,
+    currentPosition: prop.transform.position,
+    currentRotationY: prop.transform.rotationY,
+  })
+
+  const r = prop.footprintRadiusM
   const emphasised = interactive && (hovered || selected)
 
   return (
@@ -115,15 +124,21 @@ function DraggableProp({
       <PropView prop={prop} band={band} />
       {emphasised && (
         <mesh position={[0, 0.004, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry
-            args={[prop.footprintRadiusM * 0.92, prop.footprintRadiusM * 1.06, 40]}
-          />
+          <ringGeometry args={[r * 0.92, r * 1.06, 40]} />
           <meshBasicMaterial
             color={selected ? '#ffc94d' : '#8fd9ff'}
             transparent
             opacity={selected ? 0.95 : 0.6}
             toneMapped={false}
           />
+        </mesh>
+      )}
+      {/* Rotation handle: a grabbable ring outside the move indicator, shown
+          once the prop is selected. Drag it to turn the prop about its axis. */}
+      {enabled && selected && (
+        <mesh position={[0, 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]} {...rotateHandlers}>
+          <ringGeometry args={[r * 1.18, r * 1.42, 48]} />
+          <meshBasicMaterial color="#4fb8b2" transparent opacity={0.85} toneMapped={false} />
         </mesh>
       )}
     </group>

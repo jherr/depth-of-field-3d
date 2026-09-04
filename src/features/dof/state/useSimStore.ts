@@ -67,6 +67,7 @@ interface SimState {
   setSelected: (id: string | null) => void
   setDragging: (id: string | null) => void
   dragPropTo: (id: string, position: Vec3, footprintRadiusM: number) => void
+  rotatePropTo: (id: string, rotationY: number, fallback: Vec3) => void
   aimPropAt: (id: string, target: Vec3, fallback: Vec3) => void
   resetLayout: () => void
   setRenderHeightPx: (px: number) => void
@@ -145,6 +146,11 @@ export const useSimStore = create<SimState>((set, get) => ({
         id,
         clampToRoom(DEFAULT_SCENE.room, footprintRadiusM, position),
       ),
+    })),
+
+  rotatePropTo: (id, rotationY, fallback) =>
+    set((s) => ({
+      layout: rotateProp(s.layout, id, rotationY, s.layout[id]?.position ?? fallback),
     })),
 
   aimPropAt: (id, target, fallback) =>
