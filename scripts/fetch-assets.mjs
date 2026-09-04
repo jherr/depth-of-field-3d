@@ -6,6 +6,12 @@
  * scan is licensed for use, not redistribution, so it must be fetched by
  * whoever runs the app rather than shipped in the repo.
  *
+ * Runs on `pnpm install` via the postinstall hook, and by hand as `pnpm
+ * assets`. As a postinstall step it is deliberately best-effort: every asset is
+ * cached, so a repeat install makes no network calls at all, and a fetch that
+ * fails (offline, a host 403, a flaky CI box) warns rather than failing the
+ * install. Set `SKIP_ASSET_FETCH=1` to opt out entirely.
+ *
  * Usage: node scripts/fetch-assets.mjs [--force]
  */
 import { mkdir, writeFile, rm, readFile, stat } from 'node:fs/promises'
@@ -155,9 +161,25 @@ async function fetchPerson() {
   return 'person: rebuilt with normal + roughness maps'
 }
 
-const results = await Promise.all([
-  ...POLYHAVEN.map(fetchPolyHaven),
-  ...POLYHAVEN_TEX.map(fetchPolyHavenTexture),
-  fetchPerson(),
-])
-for (const r of results) console.log(r)
+const POSTINSTALL = process.env.npm_lifecycle_event === 'postinstall'
+
+if (POSTINSTALL && process.env.SKIP_ASSET_FETCH) {
+  console.log('fetch-assets: skipped (SKIP_ASSET_FETCH set). Run `pnpm assets` when you need the models.')
+  process.exit(0)
+}
+
+try {
+  const results = await Promise.all([
+    ...POLYHAVEN.map(fetchPolyHaven),
+    ...POLYHAVEN_TEX.map(fetchPolyHavenTexture),
+    fetchPerson(),
+  ])
+  for (const r of results) console.log(r)
+} catch (err) {
+  // A postinstall must never break the install. The assets are only needed to
+  // run the app, not to build or test it, so warn and let it succeed -- the
+  // user can retry with `pnpm assets` once the network or host cooperates.
+  if (!POSTINSTALL) throw err
+  console.warn(`fetch-assets: could not fetch the 3D assets (${err.message}).`)
+  console.warn('Run `pnpm assets` before `pnpm dev` once you are online.')
+}

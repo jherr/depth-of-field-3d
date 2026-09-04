@@ -13,8 +13,7 @@ one calculation.** Change the f-stop and the slab thickens, the background sharp
 moves — all from the same optics module. No blurred pixel traces back to a tuned constant.
 
 ```bash
-pnpm install
-pnpm assets       # fetch the 3D assets into public/models (see below)
+pnpm install      # postinstall fetches the 3D assets into public/models (see below)
 pnpm dev          # http://localhost:3000
 pnpm test:run     # 202 tests, mostly optics
 pnpm typecheck
@@ -23,8 +22,12 @@ pnpm build && node .output/server/index.mjs
 
 ## The assets
 
-Most of them are not in the repo. `pnpm assets` fetches them into `public/models/`, which is
-gitignored. That is a licensing requirement, not a size optimisation: the [Poly
+Most of them are not in the repo. A `postinstall` hook fetches them into `public/models/`, which is
+gitignored, so a plain `pnpm install` is enough; `pnpm assets` re-runs the same fetch by hand and
+`pnpm assets --force` re-downloads. The fetch is cached per asset, so repeat installs make no network
+calls, and it is best-effort during install — a failure warns rather than breaking `pnpm install`, and
+`SKIP_ASSET_FETCH=1 pnpm install` opts out (useful in CI, where the models are not needed to build or
+test). That the assets are fetched at all is a licensing requirement, not a size optimisation: the [Poly
 Haven](https://polyhaven.com) props are CC0 and could be committed, but the subject is a
 [Renderpeople](https://renderpeople.com/free-3d-people/) free scan, licensed for use and **not for
 redistribution**. Fetching beats vendoring.
