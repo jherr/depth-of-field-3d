@@ -19,6 +19,7 @@ import { DofReadout } from './ui/DofReadout.tsx'
 import { ScenePanel } from './ui/ScenePanel.tsx'
 import { SimTopBar } from './ui/SimTopBar.tsx'
 import { SimulatorStage } from './SimulatorStage.tsx'
+import { ChatPanel } from './ai/ChatPanel.tsx'
 
 const routeApi = getRouteApi('/')
 
@@ -98,6 +99,7 @@ export default function Simulator() {
   const units = useSimStore((s) => s.units)
   const optics = useSimStore((s) => s.optics)
   const sidebarOpen = useSimStore((s) => s.sidebarOpen)
+  const chatOpen = useSimStore((s) => s.chatOpen)
 
   // Hydrate from the URL exactly once. After this the store is authoritative
   // and the URL is a write-through sink; see useUrlWriteThrough.
@@ -118,14 +120,6 @@ export default function Simulator() {
     <div className="sim-shell">
       <SimTopBar />
       <div className="sim-body">
-        {view === 'split' ? (
-          <div className="sim-split">
-            <StageView mode="thirdPerson" derived={derived} optics={optics} ownsRenderHeight={false} />
-            <StageView mode="inCamera" derived={derived} optics={optics} ownsRenderHeight />
-          </div>
-        ) : (
-          <StageView mode={view} derived={derived} optics={optics} ownsRenderHeight />
-        )}
         {sidebarOpen && (
           <aside className="sim-side">
             <ControlPanel derived={derived} />
@@ -134,6 +128,19 @@ export default function Simulator() {
             <DebugPanel derived={derived} />
             <LimitationsPanel />
             <ShortcutsHint />
+          </aside>
+        )}
+        {view === 'split' ? (
+          <div className="sim-split">
+            <StageView mode="thirdPerson" derived={derived} optics={optics} ownsRenderHeight={false} />
+            <StageView mode="inCamera" derived={derived} optics={optics} ownsRenderHeight />
+          </div>
+        ) : (
+          <StageView mode={view} derived={derived} optics={optics} ownsRenderHeight />
+        )}
+        {chatOpen && (
+          <aside className="sim-chat">
+            <ChatPanel />
           </aside>
         )}
       </div>

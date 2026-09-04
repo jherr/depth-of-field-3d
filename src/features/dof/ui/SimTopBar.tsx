@@ -10,6 +10,8 @@ export function SimTopBar() {
   const setUnits = useSimStore((s) => s.setUnits)
   const sidebarOpen = useSimStore((s) => s.sidebarOpen)
   const toggleSidebar = useSimStore((s) => s.toggleSidebar)
+  const chatOpen = useSimStore((s) => s.chatOpen)
+  const toggleChat = useSimStore((s) => s.toggleChat)
   const [copied, setCopied] = useState(false)
 
   const copyLink = async (): Promise<void> => {
@@ -65,8 +67,37 @@ export function SimTopBar() {
         <SidebarIcon open={sidebarOpen} />
       </button>
 
+      <button
+        type="button"
+        className="sim-icon-btn"
+        aria-label={chatOpen ? 'Hide assistant' : 'Show assistant'}
+        aria-pressed={chatOpen}
+        title={chatOpen ? 'Hide assistant' : 'Show assistant'}
+        onClick={toggleChat}
+      >
+        <ChatIcon />
+      </button>
+
       <ThemeToggle />
     </header>
+  )
+}
+
+function ChatIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9.5 9.5 0 0 1-3.2-.5L3 21l1.7-4.6A8.1 8.1 0 0 1 3.6 11.5a8.4 8.4 0 0 1 9-8.4 8.4 8.4 0 0 1 8.4 8.4Z" />
+    </svg>
   )
 }
 

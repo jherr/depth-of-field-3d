@@ -76,6 +76,52 @@ Three choices worth knowing:
   is 0.1 mm on a 1.75 m frame and takes it from 5.4 MB to 3.5 MB. No `simplify()` anywhere, though
   -- decimating the curtain folds would destroy the only detail that model has.
 
+## The assistant
+
+A chat panel on the right drives the simulator through tools. Ask for "more background blur" and it
+reads the scene, changes the camera, photographs the result and tells you what it sees.
+
+It needs `ANTHROPIC_API_KEY` in `.env.local`. Without one the panel loads and the route returns a
+500 saying so; nothing else in the app depends on it.
+
+```
+src/features/dof/ai/tools.ts      tool definitions + browser implementations
+src/features/dof/ai/snapshot.ts   canvas registry and capture
+src/features/dof/ai/ChatPanel.tsx the panel
+src/routes/api.chat.ts            the server half -- holds the key, runs no tools
+src/lib/scene/catalog.ts          what it is allowed to add
+```
+
+**Every tool runs in the browser.** That is forced, not stylistic: the authoritative scene is a
+Zustand store in the tab and the thing worth photographing is a WebGL canvas in the tab, so a server
+tool would have nothing to read and nothing to look at. The server route exists to hold the API key
+and to declare the same tool shapes, which `mergeAgentTools` pairs with the handlers the request
+carries.
+
+Three decisions worth knowing:
+
+- **It can see.** `snapshot` returns a `ContentPart[]` with an image part rather than a stringified
+  object, so the model actually receives the render. The same image is shown inline in the panel, so
+  you can check its description against what it was looking at. Capturing needs
+  `preserveDrawingBuffer` on the WebGL context -- without it the buffer is cleared before a tool
+  handler runs and every capture comes back blank. The capture waits for a canvas that is *drawn*,
+  not merely mounted: a stage that has been sized but not rendered is a flat colour, and a vision
+  model will describe an empty room with total confidence.
+- **It picks from a catalogue, never a URL.** `addProp` takes a `CatalogKey`. A model free to name
+  its own glTF path would eventually name one that 404s, and one free to write a `PropGeometry`
+  would eventually write a 40-metre sofa. Positions are clamped into the room on the way in for the
+  same reason.
+- **It cannot edit the optics.** There is no tool that writes a circle of confusion or a blur
+  radius. It moves the same lens, aperture and focus controls a person has, and every number it
+  reports comes back out of `src/lib/optics/`. An assistant that could tune the output directly
+  would make the whole "no blurred pixel traces back to a tuned constant" claim worthless.
+
+Known gap: added props are session state and are not encoded in the URL, so **Copy link does not
+reproduce a scene the assistant built** -- moves and camera changes survive, added props do not.
+
+`node scripts/drive-chat.mjs "<prompt>"` runs a prompt end to end in headless Chrome and prints the
+tool calls, the image sizes and the resulting URL, which is how the above was checked.
+
 ## The optics
 
 Everything lives in `src/lib/optics/`, which imports nothing — no three.js, no React, no DOM. A test
@@ -198,11 +244,13 @@ optics, continuously checked against the shader at runtime.
 src/lib/optics/        pure optics — zero imports, ~4,700 assertions
 src/lib/scene/         scene data model, layout maths, letterbox maths
 src/features/dof/
+  ai/                  assistant panel, tools, canvas capture
   state/               zustand store, URL write-through, derived optics
   render/              DofPipeline, bokeh kernel, GLSL
   scene/               procedural props behind a GLTF-ready interface
   views/               third-person overlay, in-camera rig
   ui/                  controls, HUD, readouts, debug panel
+src/routes/api.chat.ts the assistant's server half
 scripts/               headless verification harnesses
 ```
 
@@ -210,3 +258,7 @@ State lives in a zustand store that is authoritative, with the URL as a debounce
 sink — so every setting is shareable, but a drag never round-trips through the router. Scene props
 are data behind a `PropGeometry` seam, so swapping a procedural prop for a loaded GLTF model is a
 one-line change that touches nothing else.
+
+That store is also the assistant's only way in. It drives the same actions the sliders do, which is
+why its changes show up in the sidebar, the URL and the render without any of them knowing an
+assistant exists.

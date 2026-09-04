@@ -1,5 +1,5 @@
-import { getProp } from './defaultScene.ts'
-import type { PropTransform, RoomSpec, SceneSpec, Vec3 } from './types.ts'
+import { DEFAULT_SCENE, getProp } from './defaultScene.ts'
+import type { PropTransform, RoomSpec, SceneProp, SceneSpec, Vec3 } from './types.ts'
 
 /** Per-prop transform overrides, keyed by prop id. */
 export type Layout = Readonly<Record<string, PropTransform>>
@@ -50,6 +50,24 @@ export function applyLayout(scene: SceneSpec, layout: Layout): SceneSpec {
     return { ...p, transform: { ...p.transform, ...override } }
   })
   return changed ? { ...scene, props } : scene
+}
+
+/**
+ * The scene as it is actually rendered: the default room, plus whatever has
+ * been added this session, with position overrides applied over the top.
+ *
+ * Anything that needs to know what is *in* the room -- the render tree, the
+ * assistant's scene listing, the sidebar -- goes through here rather than
+ * reaching for `DEFAULT_SCENE` plus `applyLayout` and having to remember the
+ * added props exist. `cameraPoseFromLayout` is the deliberate exception: the
+ * tripod is always a default prop, so it only needs the overrides.
+ */
+export function composeScene(added: readonly SceneProp[], layout: Layout): SceneSpec {
+  const base =
+    added.length === 0
+      ? DEFAULT_SCENE
+      : { ...DEFAULT_SCENE, props: [...DEFAULT_SCENE.props, ...added] }
+  return applyLayout(base, layout)
 }
 
 const POSITION_DECIMALS = 2

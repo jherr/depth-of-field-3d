@@ -23,6 +23,10 @@
     "@react-three/drei": "^10.7.8",
     "@react-three/fiber": "^9.7.0",
     "@tailwindcss/vite": "^4.1.18",
+    "@tanstack/ai": "^0.52.3",
+    "@tanstack/ai-anthropic": "^0.18.4",
+    "@tanstack/ai-client": "^0.30.0",
+    "@tanstack/ai-react": "^0.23.0",
     "@tanstack/react-router": "latest",
     "@tanstack/react-start": "latest",
     "nitro": "3.0.260610-beta",
@@ -30,6 +34,7 @@
     "react-dom": "^19.2.0",
     "tailwindcss": "^4.1.18",
     "three": "^0.185.1",
+    "zod": "^4.5.4",
     "zustand": "^5.0.15"
   },
   "devDependencies": {

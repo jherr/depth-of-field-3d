@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
-import { CAMERA_PROP_ID, DEFAULT_SCENE } from '#/lib/scene/defaultScene.ts'
-import { applyLayout } from '#/lib/scene/layout.ts'
+import { CAMERA_PROP_ID } from '#/lib/scene/defaultScene.ts'
+import { composeScene } from '#/lib/scene/layout.ts'
 import type { SceneProp } from '#/lib/scene/types.ts'
 import type { DerivedOptics } from '#/features/dof/state/derive.ts'
 import { useSimStore } from '#/features/dof/state/useSimStore.ts'
@@ -35,10 +35,11 @@ export function SceneRoot({
   hideCameraRig: boolean
 }) {
   const layout = useSimStore((s) => s.layout)
+  const added = useSimStore((s) => s.added)
   const units = useSimStore((s) => s.units)
   const showRuler = useSimStore((s) => s.showRuler)
 
-  const scene = useMemo(() => applyLayout(DEFAULT_SCENE, layout), [layout])
+  const scene = useMemo(() => composeScene(added, layout), [added, layout])
 
   const band: DofBandInfo = {
     nearLimitM: derived.dof.nearLimitM,

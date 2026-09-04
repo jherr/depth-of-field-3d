@@ -2,10 +2,12 @@ import { create } from 'zustand'
 import type { UnitSystem } from '#/lib/optics/format.ts'
 import { DEFAULT_OPTICS, normalizeOpticsParams } from '#/lib/optics/params.ts'
 import type { OpticsParams } from '#/lib/optics/params.ts'
+import { instantiate } from '#/lib/scene/catalog.ts'
+import type { CatalogKey } from '#/lib/scene/catalog.ts'
 import { DEFAULT_SCENE } from '#/lib/scene/defaultScene.ts'
 import { clampToRoom, moveProp as moveInLayout, rotateProp } from '#/lib/scene/layout.ts'
 import type { Layout } from '#/lib/scene/layout.ts'
-import type { Vec3 } from '#/lib/scene/types.ts'
+import type { SceneProp, Vec3 } from '#/lib/scene/types.ts'
 
 export type ViewMode = 'thirdPerson' | 'inCamera' | 'split'
 export type QualityTier = 'low' | 'medium' | 'high' | 'reference'
@@ -26,9 +28,20 @@ export interface PipelineStats {
 interface SimState {
   optics: OpticsParams
   layout: Layout
+  /**
+   * Props added this session, on top of `DEFAULT_SCENE`.
+   *
+   * Separate from `layout` because the two answer different questions: `layout`
+   * overrides the transform of a prop that already exists, while this changes
+   * what exists at all. Keeping them apart is also what lets `resetLayout` put
+   * the furniture back without deleting anything the assistant brought in.
+   */
+  added: readonly SceneProp[]
   view: ViewMode
   /** Whether the controls sidebar is visible. Purely a layout preference. */
   sidebarOpen: boolean
+  /** Whether the assistant panel is visible. Also just a layout preference. */
+  chatOpen: boolean
   units: UnitSystem
   quality: QualityTier
   debug: DebugMode
@@ -60,6 +73,11 @@ interface SimState {
   toggleView: () => void
   setSidebarOpen: (on: boolean) => void
   toggleSidebar: () => void
+  setChatOpen: (on: boolean) => void
+  toggleChat: () => void
+  /** Returns the id actually assigned, which may be suffixed to stay unique. */
+  addProp: (key: CatalogKey, position: Vec3, rotationY: number) => string
+  removeProp: (id: string) => boolean
   setUnits: (units: UnitSystem) => void
   setQuality: (quality: QualityTier) => void
   setDebug: (debug: DebugMode) => void
@@ -96,8 +114,10 @@ interface SimState {
 export const useSimStore = create<SimState>((set, get) => ({
   optics: DEFAULT_OPTICS,
   layout: {},
+  added: [],
   view: 'thirdPerson',
   sidebarOpen: true,
+  chatOpen: true,
   units: 'metric',
   quality: 'high',
   debug: 'off',
@@ -140,6 +160,36 @@ export const useSimStore = create<SimState>((set, get) => ({
     })),
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+  setChatOpen: (chatOpen) => set({ chatOpen }),
+  toggleChat: () => set((s) => ({ chatOpen: !s.chatOpen })),
+
+  addProp: (key, position, rotationY) => {
+    const s = get()
+    const taken = new Set([
+      ...DEFAULT_SCENE.props.map((p) => p.id),
+      ...s.added.map((p) => p.id),
+    ])
+    const prop = instantiate(key, position, rotationY, taken)
+    // Clamped on the way in rather than trusted: the caller is often a language
+    // model, and a prop placed through a wall is worse than one nudged inside.
+    const clamped: SceneProp = {
+      ...prop,
+      transform: {
+        ...prop.transform,
+        position: clampToRoom(DEFAULT_SCENE.room, prop.footprintRadiusM, prop.transform.position),
+      },
+    }
+    set({ added: [...s.added, clamped] })
+    return clamped.id
+  },
+
+  removeProp: (id) => {
+    const s = get()
+    if (!s.added.some((p) => p.id === id)) return false
+    const { [id]: _dropped, ...layout } = s.layout
+    set({ added: s.added.filter((p) => p.id !== id), layout })
+    return true
+  },
   setUnits: (units) => set({ units }),
   setQuality: (quality) => set({ quality }),
   setDebug: (debug) => set({ debug }),

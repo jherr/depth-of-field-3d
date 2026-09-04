@@ -547,12 +547,190 @@ a {
   flex: 0 0 20rem;
   overflow-y: auto;
   overscroll-behavior: contain;
-  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
   background: var(--surface-strong);
   padding: 0.85rem;
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
+}
+
+/* The assistant, mirroring the controls on the other side of the stage. */
+.sim-chat {
+  flex: 0 0 23rem;
+  min-height: 0;
+  border-left: 1px solid var(--line);
+  background: var(--surface-strong);
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.chat-log {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.chat-empty {
+  margin: auto 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.chat-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.9rem;
+}
+
+.chat-suggestion {
+  text-align: left;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--sea-ink);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.chat-suggestion:hover {
+  border-color: var(--accent, #8fd9ff);
+}
+
+.chat-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+/* The user's own turns are indented and boxed so the log reads as a dialogue
+   rather than one long column of prose. */
+.chat-msg.is-user {
+  align-self: flex-end;
+  max-width: 90%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  padding: 0.45rem 0.6rem;
+}
+
+.chat-text {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.chat-tool {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.chat-tool-dot {
+  flex: 0 0 auto;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-top: 0.42rem;
+  border-radius: 50%;
+  background: #8fd9ff;
+  opacity: 0.55;
+}
+.chat-tool-dot.is-done {
+  background: #7bd88f;
+  opacity: 1;
+}
+
+.chat-tool-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+/* Animated only while the call is in flight, which is the one moment the
+   distinction between "working" and "finished" is worth a pixel of motion. */
+.chat-tool-ellipsis::after {
+  content: '...';
+  animation: chat-ellipsis 1.2s steps(4, end) infinite;
+}
+@keyframes chat-ellipsis {
+  0% { content: ''; }
+  25% { content: '.'; }
+  50% { content: '..'; }
+  75% { content: '...'; }
+}
+
+.chat-shot {
+  display: block;
+  width: 100%;
+  border-radius: 0.4rem;
+  border: 1px solid var(--line);
+}
+
+.chat-error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #ff9b9b;
+}
+
+.chat-composer {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 0.45rem;
+  padding: 0.6rem;
+  border-top: 1px solid var(--line);
+}
+
+.chat-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  resize: none;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  background: var(--bg-base);
+  color: var(--sea-ink);
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+.chat-send {
+  flex: 0 0 auto;
+  align-self: stretch;
+  padding: 0 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  background: var(--surface);
+  color: var(--sea-ink);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.chat-send:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.chat-send.is-stop {
+  border-color: #ff9b9b;
+  color: #ff9b9b;
 }
 
 @media (max-width: 900px) {
@@ -562,6 +740,12 @@ a {
   .sim-side {
     flex: 0 0 auto;
     max-height: 45%;
+    border-right: none;
+    border-top: 1px solid var(--line);
+  }
+  .sim-chat {
+    flex: 0 0 auto;
+    max-height: 50%;
     border-left: none;
     border-top: 1px solid var(--line);
   }

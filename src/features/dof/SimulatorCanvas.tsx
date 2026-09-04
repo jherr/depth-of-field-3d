@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { Canvas } from '@react-three/fiber'
 import { sensorAspect } from '#/lib/optics/formats.ts'
@@ -8,6 +8,7 @@ import type { Size } from './state/useElementSize.ts'
 import { useSimStore } from './state/useSimStore.ts'
 import { RoomEnvironment } from './scene/RoomEnvironment.tsx'
 import { SceneRoot } from './scene/SceneRoot.tsx'
+import { registerStageCanvas, unregisterStageCanvas } from './ai/snapshot.ts'
 import { cameraPoseFromLayout } from './views/cameraRig.ts'
 import { InCameraView } from './views/InCameraView.tsx'
 import { ThirdPersonView } from './views/ThirdPersonView.tsx'
@@ -44,6 +45,14 @@ export function SimulatorCanvas({
     return { left: v.x, top: v.y, width: v.width, height: v.height }
   }, [inCamera, size.width, size.height, derived.sensor])
 
+  // The registry is keyed by mode and this stage owns its key while mounted.
+  // Dropping it on unmount is what tells the snapshot tool that the view is
+  // gone and has to be brought back before it can photograph anything -- but
+  // only if this canvas is still the registered one, since a view change
+  // remounts the replacement before this cleanup runs.
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  useEffect(() => () => unregisterStageCanvas(mode, canvasRef.current), [mode])
+
   if (rect.width < 2 || rect.height < 2) return null
 
   return (
@@ -71,8 +80,15 @@ export function SimulatorCanvas({
         // Log depth would break the linear-depth reconstruction the circle of
         // confusion pass depends on.
         logarithmicDepthBuffer: false,
+        // Keeps the colour buffer readable after compositing, which is the only
+        // way `toDataURL` returns anything but transparent pixels. The
+        // assistant's snapshot tool depends on it; without it every capture
+        // comes back blank. Costs a copy per frame on some drivers.
+        preserveDrawingBuffer: true,
       }}
       onCreated={({ gl, scene }) => {
+        canvasRef.current = gl.domElement
+        registerStageCanvas(mode, gl.domElement)
         // Tone mapping and sRGB encoding happen exactly once, at the end of the
         // post chain. Letting three apply them per material would double up.
         gl.toneMapping = THREE.NoToneMapping
