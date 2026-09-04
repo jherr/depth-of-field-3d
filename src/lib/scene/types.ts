@@ -45,6 +45,15 @@ export type PropGeometry =
       readonly url: string
       readonly nodeName?: string
       readonly normalizeToHeightM?: number
+      /**
+       * Keep the model's own PBR materials instead of re-skinning it.
+       *
+       * `material` stays authoritative by default, because a procedural prop
+       * has no look of its own to keep. A scanned asset does, and its
+       * roughness and normal maps are the high-frequency detail that makes
+       * defocus legible -- a flat-shaded sofa reads the same at f/1.2 and f/16.
+       */
+      readonly keepMaterials?: boolean
     }
 
 export interface MaterialSpec {

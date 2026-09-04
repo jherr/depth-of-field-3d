@@ -14,11 +14,33 @@ moves — all from the same optics module. No blurred pixel traces back to a tun
 
 ```bash
 pnpm install
+pnpm assets       # fetch the 3D assets into public/models (see below)
 pnpm dev          # http://localhost:3000
 pnpm test:run     # 202 tests, mostly optics
 pnpm typecheck
 pnpm build && node .output/server/index.mjs
 ```
+
+## The assets
+
+`pnpm assets` downloads them into `public/models/`, which is gitignored. That is a licensing
+requirement, not a size optimisation: the props are [Poly Haven](https://polyhaven.com) CC0 and
+could be committed, but the subject is a [Renderpeople](https://renderpeople.com/free-3d-people/)
+free scan, licensed for use and **not for redistribution**. Fetching beats vendoring.
+
+The props are authored in real-world metres and need no normalisation -- a 2.73 m sofa is 2.73 m.
+The scan is in centimetres under a 0.001 node scale, so it carries `normalizeToHeightM: 1.72`.
+
+Two choices worth knowing:
+
+- **Loaded materials win.** `keepMaterials: true` on a `gltf` prop keeps the model's own PBR maps
+  instead of re-skinning it from `MaterialSpec`. This is not cosmetic. Defocus is only visible
+  where there is high-frequency detail to destroy, so the roughness and normal maps *are* the
+  effect -- a flat-shaded sofa renders identically at f/1.2 and f/16.
+- **Everything is resampled to 2k.** The gather samples a downsampled colour buffer, so texel
+  detail finer than roughly screen resolution cannot survive into the blur. The scan's 4K
+  supersampled maps cost 10 MB and three JPEG decodes before first paint to buy nothing visible;
+  `scripts/fetch-assets.mjs` recompresses them to 2k WebP, which is ~2.5 MB.
 
 ## The optics
 

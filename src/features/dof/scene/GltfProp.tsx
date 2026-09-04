@@ -5,17 +5,24 @@ import { useGLTF } from '@react-three/drei'
 /**
  * The GLTF path.
  *
- * Nothing in the default scene uses it yet, but it exists so switching a prop
- * from `{ kind: 'procedural' }` to `{ kind: 'gltf', url }` is genuinely a
- * one-line change rather than a refactor. `normalizeToHeightM` rescales a
- * loaded model to a known height, since the optics care about real sizes and
- * downloaded assets rarely agree on units.
+ * Switching a prop from `{ kind: 'procedural' }` to `{ kind: 'gltf', url }` is
+ * a one-line change to the scene data and nothing else notices.
+ *
+ * `normalizeToHeightM` rescales a loaded model to a known height, since the
+ * optics care about real sizes and downloaded assets rarely agree on units --
+ * the Poly Haven props are authored in metres and need none of it, the
+ * Renderpeople scan is in centimetres and does.
  */
 export function GltfProp({
   geometry,
   material,
 }: {
-  geometry: { url: string; nodeName?: string; normalizeToHeightM?: number }
+  geometry: {
+    url: string
+    nodeName?: string
+    normalizeToHeightM?: number
+    keepMaterials?: boolean
+  }
   material: THREE.Material
 }) {
   const { scene } = useGLTF(geometry.url)
@@ -33,17 +40,20 @@ export function GltfProp({
       }
     }
 
-    // Materials in the scene data are authoritative, so the loaded model is
-    // re-skinned rather than bringing its own look.
+    // Materials in the scene data are authoritative by default, so the loaded
+    // model is re-skinned rather than bringing its own look. `keepMaterials`
+    // opts out for scanned assets, whose roughness and normal maps are the
+    // detail the blur is meant to destroy. Shadow flags are set either way --
+    // glTF carries no equivalent.
     clone.traverse((child) => {
       if (child instanceof THREE.Mesh) {
-        child.material = material
+        if (!geometry.keepMaterials) child.material = material
         child.castShadow = true
         child.receiveShadow = true
       }
     })
     return clone
-  }, [scene, geometry.nodeName, geometry.normalizeToHeightM, material])
+  }, [scene, geometry.nodeName, geometry.normalizeToHeightM, geometry.keepMaterials, material])
 
   return <primitive object={object} />
 }

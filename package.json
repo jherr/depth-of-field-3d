@@ -7,6 +7,7 @@
   },
   "scripts": {
     "dev": "vite dev --port 3000",
+    "assets": "node scripts/fetch-assets.mjs",
     "generate-routes": "tsr generate",
     "build": "vite build",
     "preview": "vite preview",
@@ -33,6 +34,8 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@gltf-transform/core": "^4.5.0",
+    "@gltf-transform/functions": "^4.5.0",
     "@tailwindcss/typography": "^0.5.16",
     "@tanstack/devtools-vite": "latest",
     "@tanstack/router-cli": "^1.132.0",
@@ -41,6 +44,7 @@
     "@types/react-dom": "^19.2.0",
     "@types/three": "^0.185.4",
     "@vitejs/plugin-react": "^6.0.1",
+    "sharp": "^0.35.4",
     "typescript": "^6.0.2",
     "vite": "^8.0.0",
     "vitest": "^4.1.11"

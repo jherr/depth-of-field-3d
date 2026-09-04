@@ -11,3 +11,6 @@ dist-ssr
 .vinxi
 __unconfig*
 todos.json
+
+# Fetched by scripts/fetch-assets.mjs (Renderpeople scan is not redistributable)
+public/models

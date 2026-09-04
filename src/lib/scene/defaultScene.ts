@@ -42,8 +42,20 @@ const props: readonly SceneProp[] = [
     id: SUBJECT_PROP_ID,
     label: 'Subject',
     role: 'subject',
-    geometry: { kind: 'procedural', shape: { type: 'mannequin', heightM: 1.75 } },
-    transform: { position: [0, 0, 0.2], rotationY: Math.PI, scale: 1 },
+    // A photogrammetry scan rather than the procedural mannequin. Skin and
+    // fabric microdetail is the point: it is the high-frequency content the
+    // blur has to destroy, and it is what makes the plane of focus land
+    // visibly on a face rather than somewhere vague on a smooth capsule.
+    // Authored in centimetres, hence the normalisation.
+    geometry: {
+      kind: 'gltf',
+      url: '/models/person/person.glb',
+      normalizeToHeightM: 1.72,
+      keepMaterials: true,
+    },
+    // The scan already faces +Z, which is where the camera is. The procedural
+    // mannequin this replaced needed Math.PI to turn around; this does not.
+    transform: { position: [0, 0, 0.2], rotationY: 0, scale: 1 },
     material: { color: '#c8b9a8', roughness: 0.62, metalness: 0.02 },
     draggable: true,
     footprintRadiusM: 0.35,
@@ -127,7 +139,7 @@ const props: readonly SceneProp[] = [
     label: 'Chrome sphere',
     role: 'prop',
     geometry: { kind: 'procedural', shape: { type: 'sphere', radius: 0.11 } },
-    transform: { position: [0.95, 0.86, -0.55], rotationY: 0, scale: 1 },
+    transform: { position: [1.16, 0.6, -0.63], rotationY: 0, scale: 1 },
     material: { color: '#e9edf0', roughness: 0.04, metalness: 1 },
     draggable: true,
     footprintRadiusM: 0.12,
@@ -136,11 +148,67 @@ const props: readonly SceneProp[] = [
     id: 'table',
     label: 'Table',
     role: 'prop',
-    geometry: { kind: 'procedural', shape: { type: 'box', size: [1.3, 0.75, 0.7] } },
-    transform: { position: [0.95, 0.375, -0.55], rotationY: 0.08, scale: 1 },
+    geometry: { kind: 'gltf', url: '/models/gallinera_table/gallinera_table_2k.gltf', keepMaterials: true },
+    transform: { position: [0.95, 0, -0.55], rotationY: 0.08, scale: 1 },
     material: matte('#6b4b32', 0.66),
     draggable: true,
+    footprintRadiusM: 0.5,
+  },
+  {
+    id: 'vase',
+    label: 'Ceramic vase',
+    role: 'prop',
+    geometry: {
+      kind: 'gltf',
+      url: '/models/antique_ceramic_vase_01/antique_ceramic_vase_01_2k.gltf',
+      keepMaterials: true,
+    },
+    // Stands on the table: 0.49 m is the table's height, measured off the asset.
+    transform: { position: [0.79, 0.49, -0.47], rotationY: -0.5, scale: 1 },
+    draggable: true,
+    material: matte('#cbbfae', 0.55),
+    footprintRadiusM: 0.14,
+  },
+  {
+    id: 'sofa',
+    label: 'Sofa',
+    role: 'prop',
+    geometry: { kind: 'gltf', url: '/models/sofa_03/sofa_03_2k.gltf', keepMaterials: true },
+    transform: { position: [-1.25, 0, -2.3], rotationY: 0.34, scale: 1 },
+    material: matte('#6d6357', 0.9),
+    draggable: true,
+    footprintRadiusM: 1.4,
+  },
+  {
+    id: 'coffee-table',
+    label: 'Coffee table',
+    role: 'prop',
+    geometry: {
+      kind: 'gltf',
+      url: '/models/gothic_coffee_table/gothic_coffee_table_2k.gltf',
+      keepMaterials: true,
+    },
+    transform: { position: [-1.05, 0, -1.15], rotationY: 0.34, scale: 1 },
+    material: matte('#4a3a2c', 0.6),
+    draggable: true,
     footprintRadiusM: 0.75,
+  },
+  {
+    id: 'elephant',
+    label: 'Carved elephant',
+    role: 'prop',
+    geometry: {
+      kind: 'gltf',
+      url: '/models/carved_wooden_elephant/carved_wooden_elephant_2k.gltf',
+      keepMaterials: true,
+    },
+    // 10 cm tall, on the coffee table. Small, densely carved and off the
+    // subject's plane, so it reads as sharp or soft well before the eye can
+    // judge the same thing on a larger prop.
+    transform: { position: [-0.78, 0.56, -1.02], rotationY: 2.1, scale: 1 },
+    material: matte('#5a4432', 0.62),
+    draggable: true,
+    footprintRadiusM: 0.08,
   },
   {
     id: 'crate-near',
