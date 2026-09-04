@@ -7,7 +7,7 @@ import { clampToRoom, moveProp as moveInLayout, rotateProp } from '#/lib/scene/l
 import type { Layout } from '#/lib/scene/layout.ts'
 import type { Vec3 } from '#/lib/scene/types.ts'
 
-export type ViewMode = 'thirdPerson' | 'inCamera'
+export type ViewMode = 'thirdPerson' | 'inCamera' | 'split'
 export type QualityTier = 'low' | 'medium' | 'high' | 'reference'
 export type DebugMode = 'off' | 'linearDepth' | 'cocSigned' | 'nearAlpha'
 
@@ -27,6 +27,8 @@ interface SimState {
   optics: OpticsParams
   layout: Layout
   view: ViewMode
+  /** Whether the controls sidebar is visible. Purely a layout preference. */
+  sidebarOpen: boolean
   units: UnitSystem
   quality: QualityTier
   debug: DebugMode
@@ -56,6 +58,8 @@ interface SimState {
   setLens: (lensId: string) => void
   setView: (view: ViewMode) => void
   toggleView: () => void
+  setSidebarOpen: (on: boolean) => void
+  toggleSidebar: () => void
   setUnits: (units: UnitSystem) => void
   setQuality: (quality: QualityTier) => void
   setDebug: (debug: DebugMode) => void
@@ -93,6 +97,7 @@ export const useSimStore = create<SimState>((set, get) => ({
   optics: DEFAULT_OPTICS,
   layout: {},
   view: 'thirdPerson',
+  sidebarOpen: true,
   units: 'metric',
   quality: 'high',
   debug: 'off',
@@ -127,7 +132,14 @@ export const useSimStore = create<SimState>((set, get) => ({
     })),
 
   setView: (view) => set({ view }),
-  toggleView: () => set((s) => ({ view: s.view === 'inCamera' ? 'thirdPerson' : 'inCamera' })),
+  // Cycle third person -> in camera -> split -> third person.
+  toggleView: () =>
+    set((s) => ({
+      view:
+        s.view === 'thirdPerson' ? 'inCamera' : s.view === 'inCamera' ? 'split' : 'thirdPerson',
+    })),
+  setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
+  toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   setUnits: (units) => set({ units }),
   setQuality: (quality) => set({ quality }),
   setDebug: (debug) => set({ debug }),

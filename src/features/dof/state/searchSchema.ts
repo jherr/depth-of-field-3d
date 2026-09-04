@@ -40,7 +40,8 @@ export function normalizeSimSearch(raw: Record<string, unknown>): SimSearch {
     sensor: String(encoded.sensor),
     coc: String(encoded.coc),
     diff: Number(encoded.diff),
-    view: raw.view === 'inCamera' ? 'inCamera' : 'thirdPerson',
+    view:
+      raw.view === 'inCamera' ? 'inCamera' : raw.view === 'split' ? 'split' : 'thirdPerson',
     units: raw.units === 'imperial' ? 'imperial' : 'metric',
     layout: typeof raw.layout === 'string' ? raw.layout : '',
   }

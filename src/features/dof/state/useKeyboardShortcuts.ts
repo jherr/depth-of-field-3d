@@ -29,6 +29,9 @@ export function useKeyboardShortcuts(): void {
         case 'Digit2':
           store.setView('inCamera')
           break
+        case 'Digit3':
+          store.setView('split')
+          break
         case 'KeyB':
           store.setBlurEnabled(!store.blurEnabled)
           break

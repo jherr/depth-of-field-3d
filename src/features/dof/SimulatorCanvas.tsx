@@ -27,13 +27,14 @@ import { DofPipeline } from './render/useDofPipeline.tsx'
 export function SimulatorCanvas({
   derived,
   size,
+  mode,
 }: {
   derived: DerivedOptics
   size: Size
+  mode: 'thirdPerson' | 'inCamera'
 }) {
-  const view = useSimStore((s) => s.view)
   const layout = useSimStore((s) => s.layout)
-  const inCamera = view === 'inCamera'
+  const inCamera = mode === 'inCamera'
 
   const pose = useMemo(() => cameraPoseFromLayout(layout), [layout])
 

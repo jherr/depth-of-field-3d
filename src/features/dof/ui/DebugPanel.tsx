@@ -39,7 +39,7 @@ export function DebugPanel({ derived }: { derived: DerivedOptics }) {
   const [probe, setProbe] = useState<ProbeResult | null>(null)
 
   useEffect(() => {
-    if (view !== 'inCamera') {
+    if (view === 'thirdPerson') {
       setProbe(null)
       return
     }
@@ -146,7 +146,7 @@ export function DebugPanel({ derived }: { derived: DerivedOptics }) {
         </table>
       )}
 
-      {view === 'inCamera' && (
+      {view !== 'thirdPerson' && (
         <>
           <div className="sim-group-title" style={{ marginTop: '0.7rem' }}>
             CoC probe · frame centre

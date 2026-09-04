@@ -524,6 +524,20 @@ a {
   overflow: hidden;
 }
 
+/* Split view: 3D model on the left, camera view on the right, an even 50/50. */
+.sim-split {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+}
+.sim-split > .sim-stage {
+  flex: 1 1 0;
+  width: 50%;
+}
+.sim-split > .sim-stage + .sim-stage {
+  border-left: 1px solid var(--line);
+}
+
 .sim-stage canvas {
   display: block;
   touch-action: none;
@@ -548,6 +562,17 @@ a {
   .sim-side {
     flex: 0 0 auto;
     max-height: 45%;
+    border-left: none;
+    border-top: 1px solid var(--line);
+  }
+  /* Stack the two halves so neither gets squeezed to an unusable width. */
+  .sim-split {
+    flex-direction: column;
+  }
+  .sim-split > .sim-stage {
+    width: 100%;
+  }
+  .sim-split > .sim-stage + .sim-stage {
     border-left: none;
     border-top: 1px solid var(--line);
   }
@@ -708,6 +733,24 @@ a {
 }
 .sim-btn:hover {
   background: var(--link-bg-hover);
+}
+
+.sim-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem;
+  border-radius: 0.45rem;
+  border: 1px solid var(--chip-line);
+  background: var(--chip-bg);
+  color: var(--sea-ink);
+  cursor: pointer;
+}
+.sim-icon-btn:hover {
+  background: var(--link-bg-hover);
+}
+.sim-icon-btn[aria-pressed='true'] {
+  color: var(--lagoon-deep);
 }
 
 .sim-check {
