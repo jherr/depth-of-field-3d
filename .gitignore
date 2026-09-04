@@ -22,3 +22,8 @@ public/models/*
 # scripts/vendor-asset.mjs.
 !public/models/window/
 !public/models/floor_lamp/
+
+# Poly Haven CC0 room surface textures, also fetched by fetch-assets.mjs. CC0
+# would permit committing them, but fetching keeps the repo lean and matches
+# the props above.
+public/textures/

@@ -38,6 +38,7 @@ rather than in a shell history.
 | --- | --- | --- |
 | Subject | [Renderpeople](https://renderpeople.com/free-3d-people/) free scan | Use only, no redistribution |
 | Sofa, tables, vase, elephant, ceiling lamp, picture frames | [Poly Haven](https://polyhaven.com) | CC0 |
+| Floor and wall surfaces (`wood_floor`, `beige_wall_001`) | [Poly Haven](https://polyhaven.com) textures | CC0 |
 | Window | ["Window"](https://sketchfab.com/3d-models/window-e826c513779149d7ab3bde944647573f) by [jesseroberts](https://sketchfab.com/jesseroberts) | CC-BY-4.0 |
 | Floor lamp | ["Sweep Floor Lamp, Black"](https://sketchfab.com/3d-models/sweep-floor-lamp-black-de6dc42e0fb44b4993ee58b4fda44daf) by [MADE.COM](https://sketchfab.com/made-it) | **CC-BY-NC-4.0** |
 

@@ -39,6 +39,22 @@ const POLYHAVEN = [
 ]
 const RES = '2k'
 
+/**
+ * Poly Haven CC0 surface textures for the room shell, at 2k.
+ *
+ * The floor and walls used to be hand-drawn canvas textures with a colour map
+ * and nothing else. But a colour map cannot carry the microrelief that defocus
+ * has to destroy -- a flat-shaded surface looks identical at f/1.2 and f/16, so
+ * the whole point of the scene is lost on its two largest surfaces. Real PBR
+ * scans bring a normal and roughness map, which is where the effect lives.
+ *
+ * `arm` packs ambient-occlusion in R and roughness in G, exactly the channels
+ * three.js reads for aoMap and roughnessMap, so one file feeds both. `nor_gl`
+ * is the OpenGL-convention normal map three.js expects. Colour is `diff`.
+ */
+const POLYHAVEN_TEX = ['wood_floor', 'beige_wall_001']
+const TEX_MAPS = { diff: 'Diffuse', nor_gl: 'nor_gl', arm: 'arm' }
+
 const PERSON_ZIP = 'https://renderpeople.com/sample/free/rp_posed_00178_29_GLB.zip'
 
 async function exists(p) {
@@ -73,6 +89,21 @@ async function fetchPolyHaven(slug) {
   for (const [rel, info] of Object.entries(entry.include ?? {})) targets[rel] = info.url
   for (const [rel, url] of Object.entries(targets)) await get(url, join(dir, rel))
   return `${slug}: ${Object.keys(targets).length} files`
+}
+
+async function fetchPolyHavenTexture(slug) {
+  const dir = join(ROOT, '..', 'textures', slug)
+  if (!FORCE && (await exists(dir))) return `${slug}: cached`
+
+  const files = JSON.parse((await get(`https://api.polyhaven.com/files/${slug}`)).toString())
+  let n = 0
+  for (const [suffix, key] of Object.entries(TEX_MAPS)) {
+    const entry = files[key]?.[RES]?.jpg
+    if (!entry) continue
+    await get(entry.url, join(dir, `${slug}_${suffix}_${RES}.jpg`))
+    n++
+  }
+  return `${slug} (texture): ${n} maps`
 }
 
 /**
@@ -124,5 +155,9 @@ async function fetchPerson() {
   return 'person: rebuilt with normal + roughness maps'
 }
 
-const results = await Promise.all([...POLYHAVEN.map(fetchPolyHaven), fetchPerson()])
+const results = await Promise.all([
+  ...POLYHAVEN.map(fetchPolyHaven),
+  ...POLYHAVEN_TEX.map(fetchPolyHavenTexture),
+  fetchPerson(),
+])
 for (const r of results) console.log(r)

@@ -1,13 +1,13 @@
 import * as THREE from 'three'
 
 /**
- * Procedural textures for the room.
+ * Procedural textures for the lens-test props.
  *
  * These are not decoration. Defocus blur is only visible where there is
- * high-frequency detail to destroy -- a flat-coloured wall looks identical at
- * f/1.2 and f/16. Every surface in this scene therefore carries fine detail,
- * and the focus charts carry deliberately hostile detail so the exact plane of
- * focus is easy to locate by eye.
+ * high-frequency detail to destroy, and the focus charts carry deliberately
+ * hostile detail so the exact plane of focus is easy to locate by eye. (The
+ * floor and walls get their detail from Poly Haven PBR scans instead -- see
+ * `props/Room.tsx`.)
  *
  * Textures are cached and never disposed: there is a fixed, small number of
  * them and they live as long as the page.
@@ -40,56 +40,6 @@ function make(
   configure?.(texture)
   cache.set(key, texture)
   return texture
-}
-
-/** Fine speckle, for the floor: lots of detail at many scales. */
-export function floorTexture(): THREE.Texture {
-  return make('floor', 512, (ctx, s) => {
-    ctx.fillStyle = '#8a7c6a'
-    ctx.fillRect(0, 0, s, s)
-    // Plank seams
-    const plank = s / 8
-    ctx.strokeStyle = 'rgba(40,30,20,0.55)'
-    ctx.lineWidth = 2
-    for (let i = 0; i <= 8; i++) {
-      ctx.beginPath()
-      ctx.moveTo(0, i * plank)
-      ctx.lineTo(s, i * plank)
-      ctx.stroke()
-    }
-    // Grain
-    for (let i = 0; i < 9000; i++) {
-      const x = Math.random() * s
-      const y = Math.random() * s
-      const a = 0.03 + Math.random() * 0.12
-      ctx.fillStyle = Math.random() > 0.5 ? `rgba(60,44,28,${a})` : `rgba(210,190,160,${a})`
-      ctx.fillRect(x, y, 1 + Math.random() * 3, 1)
-    }
-  })
-}
-
-/** Subtle plaster with a fine grid, so walls still show defocus. */
-export function wallTexture(): THREE.Texture {
-  return make('wall', 512, (ctx, s) => {
-    ctx.fillStyle = '#bdb7aa'
-    ctx.fillRect(0, 0, s, s)
-    for (let i = 0; i < 14000; i++) {
-      const a = 0.02 + Math.random() * 0.07
-      ctx.fillStyle = Math.random() > 0.5 ? `rgba(255,255,255,${a})` : `rgba(90,85,75,${a})`
-      ctx.fillRect(Math.random() * s, Math.random() * s, 1, 1)
-    }
-    ctx.strokeStyle = 'rgba(120,112,98,0.22)'
-    ctx.lineWidth = 1
-    const cell = s / 16
-    for (let i = 0; i <= 16; i++) {
-      ctx.beginPath()
-      ctx.moveTo(i * cell, 0)
-      ctx.lineTo(i * cell, s)
-      ctx.moveTo(0, i * cell)
-      ctx.lineTo(s, i * cell)
-      ctx.stroke()
-    }
-  })
 }
 
 export type ChartPattern = 'slantedEdge' | 'siemensStar' | 'checker'
