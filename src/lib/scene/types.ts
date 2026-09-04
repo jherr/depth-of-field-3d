@@ -30,13 +30,6 @@ export type ProceduralShape =
     }
   | { readonly type: 'depthRuler'; readonly lengthM: number; readonly tickSpacingM: number }
   | { readonly type: 'tripodCamera'; readonly columnHeightM: number }
-  | {
-      readonly type: 'bokehLights'
-      readonly count: number
-      readonly spreadM: number
-      readonly heightM: number
-    }
-  | { readonly type: 'lamp'; readonly heightM: number }
 
 export type PropGeometry =
   | { readonly kind: 'procedural'; readonly shape: ProceduralShape }
@@ -54,6 +47,21 @@ export type PropGeometry =
        * defocus legible -- a flat-shaded sofa reads the same at f/1.2 and f/16.
        */
       readonly keepMaterials?: boolean
+      /**
+       * Names of the loaded model's materials to drive from `material`'s
+       * emissive fields, leaving the rest of the model untouched.
+       *
+       * Downloaded lamps model a bulb but do not light it -- glTF has no notion
+       * of a source that emits above 1.0, which is exactly the threshold bokeh
+       * needs. This is how a `keepMaterials` prop still contributes a highlight:
+       * the shade keeps its PBR maps, the bulb gets `MaterialSpec`'s emissive.
+       *
+       * Keyed on material rather than node name because the interesting case is
+       * a single mesh split into primitives -- the ceiling lamp's globe, glass
+       * and body all live in one `Cylinder.003`, and only the material tells
+       * them apart.
+       */
+      readonly emissiveMaterials?: readonly string[]
     }
 
 export interface MaterialSpec {

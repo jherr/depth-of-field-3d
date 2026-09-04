@@ -33,6 +33,9 @@ const POLYHAVEN = [
   'gallinera_table',
   'antique_ceramic_vase_01',
   'carved_wooden_elephant',
+  'modern_ceiling_lamp_01',
+  'fancy_picture_frame_01',
+  'hanging_picture_frame_02',
 ]
 const RES = '2k'
 

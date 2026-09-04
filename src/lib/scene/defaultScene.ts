@@ -12,7 +12,10 @@ import type { MaterialSpec, SceneProp, SceneSpec } from './types.ts'
  *
  * 1. The scene MUST contain bright emissive sources. Bokeh only becomes visible
  *    when a highlight's energy exceeds 1.0 and survives being spread across the
- *    blur disc. The bulb string, the lamp and the window exist for that reason.
+ *    blur disc. The two lamp bulbs and the window's sky card exist for that
+ *    reason, and none of them get their glow from the downloaded model -- glTF
+ *    cannot express an emissive above 1.0, so `emissiveMaterials` drives the
+ *    bulbs from `MaterialSpec` instead.
  * 2. The depth ruler and focus chart are measurement instruments, not
  *    decoration. They are what let you confirm the rendered blur agrees with
  *    the numbers in the HUD.
@@ -99,14 +102,22 @@ const props: readonly SceneProp[] = [
     footprintRadiusM: 0.1,
   },
   {
-    id: 'bulbs',
-    label: 'Bulb string',
+    id: 'ceiling-lamp',
+    label: 'Ceiling lamp',
     role: 'lights',
     geometry: {
-      kind: 'procedural',
-      shape: { type: 'bokehLights', count: 14, spreadM: 4.2, heightM: 1.9 },
+      kind: 'gltf',
+      url: '/models/modern_ceiling_lamp_01/modern_ceiling_lamp_01_2k.gltf',
+      keepMaterials: true,
+      // One mesh, three primitives, which is why this matches on material and
+      // not node name. Both the inner globe and the frosted glass around it
+      // emit: light only the globe and the glass hides it, leaving a pendant
+      // that is lit rather than lighting.
+      emissiveMaterials: ['modern_ceiling_globe', 'modern_ceiling_lamp_01_glass'],
     },
-    transform: { position: [0, 0, -2.9], rotationY: 0, scale: 1 },
+    // Hung, not stood: the model spans y 0.221..1.173 about its own origin, so
+    // 2.9 - 1.173 puts its mount flush with the ceiling.
+    transform: { position: [0.15, 1.727, -1.7], rotationY: 0, scale: 1 },
     material: {
       color: '#1a1a1a',
       roughness: 0.3,
@@ -116,14 +127,32 @@ const props: readonly SceneProp[] = [
       emissiveIntensity: 26,
     },
     draggable: true,
-    footprintRadiusM: 0.2,
+    footprintRadiusM: 0.24,
   },
   {
-    id: 'lamp',
+    id: 'floor-lamp',
     label: 'Practical lamp',
     role: 'lights',
-    geometry: { kind: 'procedural', shape: { type: 'lamp', heightM: 1.55 } },
-    transform: { position: [-1.85, 0, -0.9], rotationY: 0.4, scale: 1 },
+    geometry: {
+      kind: 'gltf',
+      url: '/models/floor_lamp/floor_lamp.glb',
+      keepMaterials: true,
+      // The exporter named the bulb's material after a light rig rather than
+      // the bulb. It is the LIGHT_BULB mesh's only material, misleading name
+      // and all.
+      emissiveMaterials: ['EnvironmentAmbientLight'],
+    },
+    // An arc lamp: 2.04 m tall but reaching 1.78 m horizontally, and vendored
+    // about the centre of that reach rather than about its base -- so this
+    // position is mid-arc, with the base 0.89 m to one side and the bulb 0.89 m
+    // to the other. The yaw turns the sweep inward; unrotated it runs along -Z
+    // and buries the bulb in the back wall.
+    //
+    // Right of frame rather than left, because the window is the left half's
+    // light and a 1.78 m arc parked in front of it blocks the one source the
+    // background bokeh depends on. Here the base stands clear by the wall and
+    // the bulb hangs over the table, lighting the vase and the chrome sphere.
+    transform: { position: [1.5, 0, -0.9], rotationY: -Math.PI / 2, scale: 1 },
     material: {
       color: '#2b2b2b',
       roughness: 0.5,
@@ -132,7 +161,9 @@ const props: readonly SceneProp[] = [
       emissiveIntensity: 14,
     },
     draggable: true,
-    footprintRadiusM: 0.3,
+    // The whole sweep, not the base: the origin is mid-arc, so this is what
+    // keeps the far end of the lamp from being dragged through a wall.
+    footprintRadiusM: 0.9,
   },
   {
     id: 'chrome',
@@ -211,41 +242,70 @@ const props: readonly SceneProp[] = [
     footprintRadiusM: 0.08,
   },
   {
-    id: 'crate-near',
-    label: 'Crate (near)',
+    id: 'picture-fancy',
+    label: 'Framed painting',
     role: 'prop',
-    geometry: { kind: 'procedural', shape: { type: 'box', size: [0.42, 0.42, 0.42] } },
-    transform: { position: [-1.15, 0.21, 2.1], rotationY: 0.55, scale: 1 },
-    material: matte('#8a7350', 0.72),
-    draggable: true,
+    geometry: {
+      kind: 'gltf',
+      url: '/models/fancy_picture_frame_01/fancy_picture_frame_01_2k.gltf',
+      keepMaterials: true,
+    },
+    // On the back wall, 8.7 m from the lens. Carved gilt and canvas weave at
+    // that distance is the far-limit equivalent of the subject's skin: fine
+    // enough that the background goes unmistakably soft before anything else
+    // in the room does. The origin is the frame's centre, so y is eye level.
+    transform: { position: [0.9, 1.55, -4.48], rotationY: 0, scale: 1 },
+    material: matte('#8a6a3a', 0.5),
+    draggable: false,
     footprintRadiusM: 0.32,
   },
   {
-    id: 'crate-far',
-    label: 'Crate (far)',
+    id: 'picture-hanging',
+    label: 'Hanging picture',
     role: 'prop',
-    geometry: { kind: 'procedural', shape: { type: 'box', size: [0.55, 0.55, 0.55] } },
-    transform: { position: [-1.5, 0.275, -3.5], rotationY: -0.3, scale: 1 },
-    material: matte('#7c6a4d', 0.72),
-    draggable: true,
-    footprintRadiusM: 0.4,
-  },
-  {
-    id: 'column',
-    label: 'Column',
-    role: 'prop',
-    geometry: { kind: 'procedural', shape: { type: 'cylinder', radius: 0.18, height: 2.7 } },
-    transform: { position: [2.2, 1.35, -1.9], rotationY: 0, scale: 1 },
-    material: matte('#cfc7b8', 0.85),
-    draggable: true,
-    footprintRadiusM: 0.2,
+    geometry: {
+      kind: 'gltf',
+      url: '/models/hanging_picture_frame_02/hanging_picture_frame_02_2k.gltf',
+      keepMaterials: true,
+    },
+    // Hangs from its own hook, so the geometry sits 0.279 below the origin and
+    // only 0.221 above it -- hence a y that is not simply the centre height.
+    transform: { position: [1.95, 1.58, -4.48], rotationY: 0, scale: 1 },
+    material: matte('#4a3f34', 0.6),
+    draggable: false,
+    footprintRadiusM: 0.38,
   },
   {
     id: 'window',
     label: 'Window',
     role: 'architecture',
-    geometry: { kind: 'procedural', shape: { type: 'box', size: [1.6, 1.35, 0.06] } },
-    transform: { position: [-1.0, 1.5, -4.45], rotationY: 0, scale: 1 },
+    geometry: {
+      kind: 'gltf',
+      url: '/models/window/window.glb',
+      // The only loaded model in the scene that is re-skinned rather than kept.
+      // It ships one flat grey `lambert1` and no maps at all, so there is no
+      // authored look to preserve -- and painted trim genuinely is featureless.
+      // Its 220k triangles of curtain fold carry the detail instead.
+      keepMaterials: false,
+    },
+    // 1.40 x 1.75 m, sitting on a 0.75 m sill. Baked to face +Z, so no yaw here.
+    transform: { position: [-1.0, 0.75, -4.4], rotationY: 0, scale: 1 },
+    material: matte('#e6e2d8', 0.78),
+    draggable: false,
+    footprintRadiusM: 0.1,
+  },
+  {
+    id: 'window-sky',
+    label: 'Window daylight',
+    role: 'lights',
+    // The old procedural window, kept almost verbatim and moved behind the
+    // frame. A window is not a glowing rectangle, it is a bright exterior seen
+    // through one -- and the mullions cut this card into six panes, so a single
+    // emitter defocuses into six separate discs instead of one slab.
+    geometry: { kind: 'procedural', shape: { type: 'box', size: [1.05, 1.45, 0.06] } },
+    // Measured off the model: the glazed opening centres 0.86 m above the
+    // window's base, which puts it at 1.61 m with the sill at 0.75 m.
+    transform: { position: [-1.0, 1.61, -4.46], rotationY: 0, scale: 1 },
     material: {
       color: '#0a0a0a',
       roughness: 1,

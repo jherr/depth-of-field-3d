@@ -1,10 +1,8 @@
 import { Suspense } from 'react'
 import type { SceneProp } from '#/lib/scene/types.ts'
 import type { UnitSystem } from '#/lib/optics/format.ts'
-import { BokehLights } from './props/BokehLights.tsx'
 import { DepthRuler } from './props/DepthRuler.tsx'
 import { FocusChart } from './props/FocusChart.tsx'
-import { Lamp } from './props/Lamp.tsx'
 import { Mannequin } from './props/Mannequin.tsx'
 import { Box, Cylinder, Sphere, useStandardMaterial } from './props/Primitives.tsx'
 import { TripodCamera } from './props/TripodCamera.tsx'
@@ -68,16 +66,5 @@ export function PropView({ prop, band }: { prop: SceneProp; band: DofBandInfo })
           units={band.units}
         />
       )
-    case 'bokehLights':
-      return (
-        <BokehLights
-          count={shape.count}
-          spreadM={shape.spreadM}
-          heightM={shape.heightM}
-          material={prop.material}
-        />
-      )
-    case 'lamp':
-      return <Lamp heightM={shape.heightM} material={prop.material} />
   }
 }

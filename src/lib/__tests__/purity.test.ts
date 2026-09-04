@@ -37,8 +37,12 @@ describe('src/lib is pure', () => {
   )
 
   it('never touches the DOM or browser globals', () => {
-    for (const f of files) {
-      expect(readFileSync(f, 'utf8')).not.toMatch(/\bdocument\.|\bwindow\.|localStorage/)
-    }
+    // The lookbehind is what stops `/models/window/window.glb` from reading as
+    // a browser global. `\b` alone treats the `/` and the `.` as boundaries, so
+    // any asset path ending in a filename called `window` or `document` would
+    // fail this test for no reason.
+    const global = /(?<![\w./-])(?:document|window)\.|(?<![\w.])localStorage\b/
+    const offenders = files.filter((f) => global.test(readFileSync(f, 'utf8')))
+    expect(offenders).toEqual([])
   })
 })

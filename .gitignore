@@ -12,5 +12,13 @@ dist-ssr
 __unconfig*
 todos.json
 
-# Fetched by scripts/fetch-assets.mjs (Renderpeople scan is not redistributable)
-public/models
+# Fetched by scripts/fetch-assets.mjs (Renderpeople scan is not redistributable).
+# `public/models/*` rather than `public/models`, because git will not descend
+# into an excluded directory and the re-includes below would never be read.
+public/models/*
+
+# The two Sketchfab models, which have no fetchable URL and so are committed.
+# Both licences permit redistribution with credit; see the README. Rebuilt by
+# scripts/vendor-asset.mjs.
+!public/models/window/
+!public/models/floor_lamp/

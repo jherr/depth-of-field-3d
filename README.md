@@ -23,24 +23,54 @@ pnpm build && node .output/server/index.mjs
 
 ## The assets
 
-`pnpm assets` downloads them into `public/models/`, which is gitignored. That is a licensing
-requirement, not a size optimisation: the props are [Poly Haven](https://polyhaven.com) CC0 and
-could be committed, but the subject is a [Renderpeople](https://renderpeople.com/free-3d-people/)
-free scan, licensed for use and **not for redistribution**. Fetching beats vendoring.
+Most of them are not in the repo. `pnpm assets` fetches them into `public/models/`, which is
+gitignored. That is a licensing requirement, not a size optimisation: the [Poly
+Haven](https://polyhaven.com) props are CC0 and could be committed, but the subject is a
+[Renderpeople](https://renderpeople.com/free-3d-people/) free scan, licensed for use and **not for
+redistribution**. Fetching beats vendoring.
 
-The props are authored in real-world metres and need no normalisation -- a 2.73 m sofa is 2.73 m.
-The scan is in centimetres under a 0.001 node scale, so it carries `normalizeToHeightM: 1.72`.
+Two models are committed anyway, because Sketchfab has no fetchable URL and a download script would
+just break for everyone else. `scripts/vendor-asset.mjs` is the transform that produced them --
+committing a binary means committing something nobody can diff, so the recipe lives in the repo
+rather than in a shell history.
 
-Two choices worth knowing:
+| Asset | Source | Licence |
+| --- | --- | --- |
+| Subject | [Renderpeople](https://renderpeople.com/free-3d-people/) free scan | Use only, no redistribution |
+| Sofa, tables, vase, elephant, ceiling lamp, picture frames | [Poly Haven](https://polyhaven.com) | CC0 |
+| Window | ["Window"](https://sketchfab.com/3d-models/window-e826c513779149d7ab3bde944647573f) by [jesseroberts](https://sketchfab.com/jesseroberts) | CC-BY-4.0 |
+| Floor lamp | ["Sweep Floor Lamp, Black"](https://sketchfab.com/3d-models/sweep-floor-lamp-black-de6dc42e0fb44b4993ee58b4fda44daf) by [MADE.COM](https://sketchfab.com/made-it) | **CC-BY-NC-4.0** |
+
+The floor lamp is the one asset that is not commercially usable. Swap it or drop it before shipping
+this anywhere that matters; nothing else in the scene carries that restriction.
+
+### Units, orientation and materials
+
+Everything under `public/models` is in metres, base at y=0, facing +Z. The scene data assumes it,
+so `defaultScene.ts` never contains a magic unit conversion. Getting there is not free: the Poly
+Haven props already agree, the Renderpeople scan is in centimetres under a 0.001 node scale and
+carries `normalizeToHeightM: 1.72`, and the two Sketchfab models were in inches and centimetres
+respectively, one of them Z-up and modelled facing +X. `vendor-asset.mjs` bakes that out.
+
+Three choices worth knowing:
 
 - **Loaded materials win.** `keepMaterials: true` on a `gltf` prop keeps the model's own PBR maps
   instead of re-skinning it from `MaterialSpec`. This is not cosmetic. Defocus is only visible
   where there is high-frequency detail to destroy, so the roughness and normal maps *are* the
-  effect -- a flat-shaded sofa renders identically at f/1.2 and f/16.
+  effect -- a flat-shaded sofa renders identically at f/1.2 and f/16. The window is the sole
+  exception: it ships one flat grey material and no maps, so there is nothing to preserve, and its
+  220k triangles of curtain fold supply the detail instead.
+- **Bulbs are lit by the scene, not the model.** glTF cannot express an emissive above 1.0, which
+  is exactly the threshold bokeh needs, so every downloaded lamp arrives dark. `emissiveMaterials`
+  names the materials to drive from `MaterialSpec` -- the shade keeps its maps, the bulb gets the
+  glow. It keys on material rather than node because the ceiling lamp's globe, glass and body are
+  three primitives of one mesh.
 - **Everything is resampled to 2k.** The gather samples a downsampled colour buffer, so texel
   detail finer than roughly screen resolution cannot survive into the blur. The scan's 4K
-  supersampled maps cost 10 MB and three JPEG decodes before first paint to buy nothing visible;
-  `scripts/fetch-assets.mjs` recompresses them to 2k WebP, which is ~2.5 MB.
+  supersampled maps cost 10 MB and three JPEG decodes before first paint to buy nothing visible.
+  Geometry gets the same treatment where it is committed: quantizing the window to 14-bit positions
+  is 0.1 mm on a 1.75 m frame and takes it from 5.4 MB to 3.5 MB. No `simplify()` anywhere, though
+  -- decimating the curtain folds would destroy the only detail that model has.
 
 ## The optics
 
