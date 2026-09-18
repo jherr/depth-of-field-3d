@@ -14,6 +14,7 @@ const RUNNING: Record<string, string> = {
   moveProp: 'Moving a prop',
   removeProp: 'Removing a prop',
   setCamera: 'Adjusting the camera',
+  aimCameraAt: 'Panning the camera',
   focusOn: 'Pulling focus',
   snapshot: 'Looking at the render',
 }
@@ -23,6 +24,7 @@ const SUGGESTIONS = [
   'Put a lamp behind the subject and show me the bokeh',
   'Focus on the vase and take a look',
   'Set up a classic 85mm portrait',
+  'Turn the camera toward the window and show me',
 ]
 
 /**

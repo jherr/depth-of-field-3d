@@ -111,10 +111,18 @@ Three decisions worth knowing:
   its own glTF path would eventually name one that 404s, and one free to write a `PropGeometry`
   would eventually write a 40-metre sofa. Positions are clamped into the room on the way in for the
   same reason.
+- **It pans as well as moves.** The tripod's yaw is what aims the lens, so `aimCameraAt` points the
+  camera at a prop or a spot and `setCamera`'s `rotationYDeg` sets an absolute heading. Distances
+  are axial and therefore signed: pan away from something and it reports a negative distance, which
+  `focusOn` refuses rather than focusing on empty space behind the camera.
 - **It cannot edit the optics.** There is no tool that writes a circle of confusion or a blur
   radius. It moves the same lens, aperture and focus controls a person has, and every number it
   reports comes back out of `src/lib/optics/`. An assistant that could tune the output directly
   would make the whole "no blurred pixel traces back to a tuned constant" claim worthless.
+
+Tools that can fail in a way the model could fix -- a bad id, a prop behind the camera -- return
+`{ ok: false, reason }` instead of throwing. A thrown error ends the run where it stands, leaving
+the user with a column of green ticks and no reply.
 
 Known gap: added props are session state and are not encoded in the URL, so **Copy link does not
 reproduce a scene the assistant built** -- moves and camera changes survive, added props do not.

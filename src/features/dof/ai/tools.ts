@@ -23,6 +23,13 @@ import type { StageMode } from './snapshot.ts'
  * So the server route contributes no implementations at all -- it declares the
  * same definitions so the model knows the shapes, and `mergeAgentTools` pairs
  * them with the client handlers the request carries.
+ *
+ * Tools that can fail in a way the model could reasonably fix -- a bad id, a
+ * prop behind the camera -- return `{ ok: false, reason }` rather than throwing.
+ * A thrown error ends the run where it stands: the user is left looking at a
+ * list of green ticks with no reply, and the assistant never gets the chance to
+ * say what went wrong or try something else. Throwing is for faults, not for
+ * answers the model needs to hear.
  */
 
 /**
@@ -73,6 +80,7 @@ export const describeSceneToolDef = toolDefinition({
       focusDistanceM: z.number(),
       sensor: z.string(),
       positionM: z.tuple([z.number(), z.number(), z.number()]),
+      rotationYDeg: z.number().describe('Where the camera is pointing. 0 looks down -z.'),
     }),
     depthOfField: z.object({
       nearLimitM: z.number(),
@@ -120,10 +128,12 @@ export const movePropToolDef = toolDefinition({
     rotationYDeg: z.number().optional().describe('Omit to leave the rotation alone.'),
   }),
   outputSchema: z.object({
+    ok: z.boolean(),
+    reason: z.string().optional(),
     id: z.string(),
-    position: z.tuple([z.number(), z.number(), z.number()]),
-    rotationYDeg: z.number(),
-    distanceFromCameraM: z.number(),
+    position: z.tuple([z.number(), z.number(), z.number()]).optional(),
+    rotationYDeg: z.number().optional(),
+    distanceFromCameraM: z.number().optional(),
   }),
 })
 
@@ -153,6 +163,12 @@ export const setCameraToolDef = toolDefinition({
     sensorId: z.string().optional(),
     /** The tripod is a prop, so moving the camera body is moving a prop. */
     positionM: vec3.optional().describe('Move the tripod. y is ignored; the rig always stands on the floor.'),
+    rotationYDeg: z
+      .number()
+      .optional()
+      .describe(
+        'Pan the camera, as an absolute heading in degrees. 0 looks down -z, which is the default; positive turns the camera to its left, so 90 looks down -x and 180 looks back at the near wall. To turn by a relative amount, read the current heading from describeScene and add to it. Prefer aimCameraAt when you want to point at something in particular.',
+      ),
   }),
   outputSchema: z.object({
     lens: z.string(),
@@ -160,11 +176,29 @@ export const setCameraToolDef = toolDefinition({
     fNumber: z.number(),
     focusDistanceM: z.number(),
     sensor: z.string(),
+    rotationYDeg: z.number(),
     depthOfField: z.object({
       nearLimitM: z.number(),
       farLimitM: z.number(),
       totalM: z.number(),
     }),
+  }),
+})
+
+export const aimCameraAtToolDef = toolDefinition({
+  name: 'aimCameraAt',
+  description:
+    'Point the camera at a prop or at a spot on the floor, by panning the tripod. This only turns the camera; it does not focus it or move it. Use focusOn afterwards if you also want that thing sharp.',
+  inputSchema: z.object({
+    propId: z.string().optional().describe('Id of the prop to point at.'),
+    point: vec3.optional().describe('A point to point at, if not aiming at a prop.'),
+  }),
+  outputSchema: z.object({
+    ok: z.boolean(),
+    reason: z.string().optional(),
+    aimedAt: z.string().optional(),
+    rotationYDeg: z.number().optional(),
+    distanceFromCameraM: z.number().optional(),
   }),
 })
 
@@ -174,9 +208,13 @@ export const focusOnToolDef = toolDefinition({
     'Focus the lens on a named prop, by setting the focus distance to that prop\'s axial distance from the camera. Easier and more accurate than computing the distance yourself.',
   inputSchema: z.object({ id: z.string() }),
   outputSchema: z.object({
+    ok: z.boolean(),
+    reason: z.string().optional(),
     id: z.string(),
-    focusDistanceM: z.number(),
-    depthOfField: z.object({ nearLimitM: z.number(), farLimitM: z.number(), totalM: z.number() }),
+    focusDistanceM: z.number().optional(),
+    depthOfField: z
+      .object({ nearLimitM: z.number(), farLimitM: z.number(), totalM: z.number() })
+      .optional(),
   }),
 })
 
@@ -199,6 +237,7 @@ export const TOOL_DEFS = [
   movePropToolDef,
   removePropToolDef,
   setCameraToolDef,
+  aimCameraAtToolDef,
   focusOnToolDef,
   snapshotToolDef,
 ]
@@ -206,6 +245,9 @@ export const TOOL_DEFS = [
 // ---------------------------------------------------------------------------
 // Browser implementations
 // ---------------------------------------------------------------------------
+
+const NO_SUCH_PROP = (id: string) =>
+  `no prop with id "${id}". Call describeScene to see what is actually in the room.`
 
 const DEG = 180 / Math.PI
 const toRad = (deg: number) => deg / DEG
@@ -223,15 +265,28 @@ function derived() {
   return deriveOptics(s.optics, s.renderHeightPx)
 }
 
-/** Axial distance along the optical axis, matching what the DOF maths uses. */
+function cameraRig() {
+  const rig = currentScene().props.find((p) => p.id === 'tripod')
+  return {
+    position: rig?.transform.position ?? ([0, 0, 4.2] as const),
+    rotationY: rig?.transform.rotationY ?? 0,
+    footprintRadiusM: rig?.footprintRadiusM ?? 0.45,
+  }
+}
+
+/**
+ * Axial distance along the optical axis, matching what the DOF maths uses.
+ *
+ * Signed, and deliberately so. Now that the camera can be panned, a prop can
+ * end up behind it, and an absolute value would report a cheerful positive
+ * distance for something that is not in the picture at all -- which `focusOn`
+ * would then happily focus on.
+ */
 function distanceFromCamera(position: readonly [number, number, number]): number {
-  const scene = currentScene()
-  const rig = scene.props.find((p) => p.id === 'tripod')
-  const t = rig?.transform.position ?? [0, 0, 4.2]
-  const rotationY = rig?.transform.rotationY ?? 0
-  const forward = [-Math.sin(rotationY), 0, -Math.cos(rotationY)] as const
-  const d = [position[0] - t[0], 0, position[2] - t[2]] as const
-  return round(Math.abs(d[0] * forward[0] + d[2] * forward[2]), 2)
+  const rig = cameraRig()
+  const forward = [-Math.sin(rig.rotationY), 0, -Math.cos(rig.rotationY)] as const
+  const d = [position[0] - rig.position[0], 0, position[2] - rig.position[2]] as const
+  return round(d[0] * forward[0] + d[2] * forward[2], 2)
 }
 
 function dofSummary() {
@@ -248,7 +303,7 @@ const describeScene = describeSceneToolDef.client(() => {
   const scene = currentScene()
   const d = derived()
   const addedIds = new Set(s.added.map((p) => p.id))
-  const rig = scene.props.find((p) => p.id === 'tripod')
+  const rig = cameraRig()
 
   return {
     room: {
@@ -262,7 +317,8 @@ const describeScene = describeSceneToolDef.client(() => {
       fNumber: d.params.fNumber,
       focusDistanceM: d.params.focusDistanceM,
       sensor: d.sensor.label,
-      positionM: roundVec(rig?.transform.position ?? [0, 0, 4.2]),
+      positionM: roundVec(rig.position),
+      rotationYDeg: round(rig.rotationY * DEG, 1),
     },
     depthOfField: {
       ...dofSummary(),
@@ -296,9 +352,7 @@ const moveProp = movePropToolDef.client((args) => {
   const scene = currentScene()
   const prop = scene.props.find((p) => p.id === args.id)
   if (!prop) {
-    throw new Error(
-      `no prop with id "${args.id}". Call describeScene to see what is actually in the room.`,
-    )
+    return { ok: false, id: args.id, reason: NO_SUCH_PROP(args.id) }
   }
 
   const store = useSimStore.getState()
@@ -309,6 +363,7 @@ const moveProp = movePropToolDef.client((args) => {
 
   const after = currentScene().props.find((p) => p.id === args.id)!
   return {
+    ok: true,
     id: args.id,
     position: roundVec(after.transform.position),
     rotationYDeg: round(after.transform.rotationY * DEG, 1),
@@ -346,8 +401,10 @@ const setCamera = setCameraToolDef.client((args) => {
   if (Object.keys(patch).length > 0) store.patchOptics(patch)
 
   if (args.positionM) {
-    const rig = currentScene().props.find((p) => p.id === 'tripod')
-    store.dragPropTo('tripod', [args.positionM.x, 0, args.positionM.z], rig?.footprintRadiusM ?? 0.45)
+    store.dragPropTo('tripod', [args.positionM.x, 0, args.positionM.z], cameraRig().footprintRadiusM)
+  }
+  if (args.rotationYDeg !== undefined) {
+    store.rotatePropTo('tripod', toRad(args.rotationYDeg), cameraRig().position)
   }
 
   const d = derived()
@@ -357,21 +414,53 @@ const setCamera = setCameraToolDef.client((args) => {
     fNumber: d.params.fNumber,
     focusDistanceM: d.params.focusDistanceM,
     sensor: d.sensor.label,
+    rotationYDeg: round(cameraRig().rotationY * DEG, 1),
     depthOfField: dofSummary(),
+  }
+})
+
+const aimCameraAt = aimCameraAtToolDef.client((args) => {
+  let target: [number, number, number]
+  let aimedAt: string
+
+  if (args.propId) {
+    const prop = currentScene().props.find((p) => p.id === args.propId)
+    if (!prop) return { ok: false, reason: NO_SUCH_PROP(args.propId) }
+    target = [...prop.transform.position] as [number, number, number]
+    aimedAt = `${prop.label} (${prop.id})`
+  } else if (args.point) {
+    target = toVec(args.point)
+    aimedAt = `point ${target.join(', ')}`
+  } else {
+    return { ok: false, reason: 'aimCameraAt needs either a propId or a point' }
+  }
+
+  const rig = cameraRig()
+  useSimStore.getState().aimPropAt('tripod', target, rig.position)
+
+  return {
+    ok: true,
+    aimedAt,
+    rotationYDeg: round(cameraRig().rotationY * DEG, 1),
+    distanceFromCameraM: distanceFromCamera(target),
   }
 })
 
 const focusOn = focusOnToolDef.client((args) => {
   const prop = currentScene().props.find((p) => p.id === args.id)
-  if (!prop) {
-    throw new Error(
-      `no prop with id "${args.id}". Call describeScene to see what is actually in the room.`,
-    )
-  }
+  if (!prop) return { ok: false, id: args.id, reason: NO_SUCH_PROP(args.id) }
+
   const focusDistanceM = distanceFromCamera(prop.transform.position)
+  if (focusDistanceM <= 0) {
+    return {
+      ok: false,
+      id: args.id,
+      reason: `"${args.id}" is ${Math.abs(focusDistanceM)} m behind the camera, so there is nothing there to focus on. Point the camera at it first with aimCameraAt, then focus.`,
+    }
+  }
   useSimStore.getState().patchOptics({ focusDistanceM })
 
-  return { id: args.id, focusDistanceM, depthOfField: dofSummary() }
+  return { ok: true, id: args.id, focusDistanceM, depthOfField: dofSummary() }
 })
 
 /**
@@ -399,6 +488,7 @@ export const SIM_TOOLS = [
   moveProp,
   removeProp,
   setCamera,
+  aimCameraAt,
   focusOn,
   snapshot,
 ]

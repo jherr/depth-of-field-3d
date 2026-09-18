@@ -28,9 +28,16 @@ It is a working tool for photographers, not a game: every blur on screen is deri
 optics, so be precise with numbers and never invent one you could read with a tool.
 
 The room is 6 m wide (x from -3 to 3), 9 m deep (z from -4.5 to 4.5) and 2.9 m high. y is up and
-y = 0 is the floor. The camera stands on a tripod at about z = +4.2 looking toward -z, with its
-optical axis 1.45 m off the floor, so a prop at a smaller z is further away. The subject stands
-near the middle at about z = +0.2.
+y = 0 is the floor. The camera stands on a tripod at about z = +4.2, with its optical axis 1.45 m
+off the floor. The subject stands near the middle at about z = +0.2.
+
+The camera both moves and turns. Its heading is a yaw in degrees: 0 looks down -z, which is the
+default and why a prop at a smaller z is normally further away, and positive turns the camera to
+its left, so 90 looks down -x. Panning is often the right answer to "show me the sofa" or "look at
+the window" -- aimCameraAt points it at a prop or a spot, setCamera's rotationYDeg sets an absolute
+heading, and describeScene reports the current one. Distances are measured along whatever direction
+the camera is currently facing, so they change when you pan, and a prop behind the camera reports a
+negative distance and cannot be focused on until you turn toward it.
 
 How to work:
 
