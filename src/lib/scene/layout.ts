@@ -62,12 +62,14 @@ export function applyLayout(scene: SceneSpec, layout: Layout): SceneSpec {
  * added props exist. `cameraPoseFromLayout` is the deliberate exception: the
  * tripod is always a default prop, so it only needs the overrides.
  */
-export function composeScene(added: readonly SceneProp[], layout: Layout): SceneSpec {
-  const base =
-    added.length === 0
-      ? DEFAULT_SCENE
-      : { ...DEFAULT_SCENE, props: [...DEFAULT_SCENE.props, ...added] }
-  return applyLayout(base, layout)
+export function composeScene(
+  added: readonly SceneProp[],
+  layout: Layout,
+  base: SceneSpec = DEFAULT_SCENE,
+): SceneSpec {
+  const withAdded =
+    added.length === 0 ? base : { ...base, props: [...base.props, ...added] }
+  return applyLayout(withAdded, layout)
 }
 
 const POSITION_DECIMALS = 2

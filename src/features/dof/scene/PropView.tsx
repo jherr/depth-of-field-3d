@@ -3,6 +3,7 @@ import type { SceneProp } from '#/lib/scene/types.ts'
 import type { UnitSystem } from '#/lib/optics/format.ts'
 import { DepthRuler } from './props/DepthRuler.tsx'
 import { FocusChart } from './props/FocusChart.tsx'
+import { LedWall } from './props/LedWall.tsx'
 import { Mannequin } from './props/Mannequin.tsx'
 import { Box, Cylinder, Sphere, useStandardMaterial } from './props/Primitives.tsx'
 import { TripodCamera } from './props/TripodCamera.tsx'
@@ -45,6 +46,8 @@ export function PropView({ prop, band }: { prop: SceneProp; band: DofBandInfo })
       return <Mannequin heightM={shape.heightM} material={material} />
     case 'tripodCamera':
       return <TripodCamera columnHeightM={shape.columnHeightM} material={material} />
+    case 'ledWall':
+      return <LedWall widthM={shape.widthM} heightM={shape.heightM} />
     case 'focusChart':
       return (
         <FocusChart

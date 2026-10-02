@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { encodeCocCriterion } from '#/lib/optics/params.ts'
-import { DEFAULT_SCENE } from '#/lib/scene/defaultScene.ts'
 import { encodeLayout } from '#/lib/scene/layout.ts'
+import { getSceneSpec } from '#/lib/scene/scenes.ts'
 import type { SimSearch } from './searchSchema.ts'
 import { useSimStore } from './useSimStore.ts'
 
@@ -21,7 +21,7 @@ export function useUrlWriteThrough(): void {
 
   useEffect(() => {
     const write = (): void => {
-      const { optics, layout, view, units } = useSimStore.getState()
+      const { optics, sceneId, ledWallPitchMm, layout, view, units } = useSimStore.getState()
       // Written out field by field rather than spread from a Record, so the
       // router can type-check the search shape against the route.
       const search: SimSearch = {
@@ -34,7 +34,9 @@ export function useUrlWriteThrough(): void {
         diff: optics.diffraction ? 1 : 0,
         view,
         units,
-        layout: encodeLayout(DEFAULT_SCENE, layout),
+        scene: sceneId,
+        pitch: ledWallPitchMm,
+        layout: encodeLayout(getSceneSpec(sceneId), layout),
       }
       void navigate({ to: '/', search, replace: true, resetScroll: false })
     }

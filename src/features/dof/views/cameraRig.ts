@@ -1,7 +1,7 @@
 import { CAMERA_PROP_ID, DEFAULT_SCENE, getProp } from '#/lib/scene/defaultScene.ts'
 import { applyLayout } from '#/lib/scene/layout.ts'
 import type { Layout } from '#/lib/scene/layout.ts'
-import type { Vec3 } from '#/lib/scene/types.ts'
+import type { SceneSpec, Vec3 } from '#/lib/scene/types.ts'
 
 export interface CameraPose {
   /** Optical centre of the lens, in world metres. */
@@ -19,8 +19,8 @@ export interface CameraPose {
  * in-camera view renders. Height comes from the rig's column, so the optical
  * axis sits where the model's lens is.
  */
-export function cameraPoseFromLayout(layout: Layout): CameraPose {
-  const scene = applyLayout(DEFAULT_SCENE, layout)
+export function cameraPoseFromLayout(layout: Layout, base: SceneSpec = DEFAULT_SCENE): CameraPose {
+  const scene = applyLayout(base, layout)
   const rig = getProp(scene, CAMERA_PROP_ID)
   const t = rig?.transform ?? { position: [0, 0, 0] as Vec3, rotationY: 0, scale: 1 }
   const shape = rig?.geometry.kind === 'procedural' ? rig.geometry.shape : undefined

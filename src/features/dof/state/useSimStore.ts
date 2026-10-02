@@ -4,9 +4,10 @@ import { DEFAULT_OPTICS, normalizeOpticsParams } from '#/lib/optics/params.ts'
 import type { OpticsParams } from '#/lib/optics/params.ts'
 import { instantiate } from '#/lib/scene/catalog.ts'
 import type { CatalogKey } from '#/lib/scene/catalog.ts'
-import { DEFAULT_SCENE } from '#/lib/scene/defaultScene.ts'
 import { clampToRoom, moveProp as moveInLayout, rotateProp } from '#/lib/scene/layout.ts'
 import type { Layout } from '#/lib/scene/layout.ts'
+import { DEFAULT_SCENE_ID, getSceneDef, getSceneSpec } from '#/lib/scene/scenes.ts'
+import type { SceneId } from '#/lib/scene/scenes.ts'
 import type { SceneProp, Vec3 } from '#/lib/scene/types.ts'
 
 export type ViewMode = 'thirdPerson' | 'inCamera' | 'split'
@@ -27,6 +28,8 @@ export interface PipelineStats {
 
 interface SimState {
   optics: OpticsParams
+  /** Which venue is loaded. Picks the room, props and camera placement. */
+  sceneId: SceneId
   layout: Layout
   /**
    * Props added this session, on top of `DEFAULT_SCENE`.
@@ -43,6 +46,15 @@ interface SimState {
   /** Whether the assistant panel is visible. Also just a layout preference. */
   chatOpen: boolean
   units: UnitSystem
+  /**
+   * LED pixel pitch for the moiré readout, millimetres.
+   *
+   * Lives in session state rather than on the wall prop so a designer can dial
+   * in their actual wall (1.5 mm fine-pitch through 3.9 mm touring panels)
+   * without editing the scene. The wall renders the same at any pitch -- it is
+   * only the moiré risk comparison that depends on it.
+   */
+  ledWallPitchMm: number
   quality: QualityTier
   debug: DebugMode
   blurEnabled: boolean
@@ -66,9 +78,18 @@ interface SimState {
   roundnessOverride: number | null
   stats: PipelineStats | null
 
-  hydrate: (optics: OpticsParams, layout: Layout, view: ViewMode, units: UnitSystem) => void
+  hydrate: (
+    optics: OpticsParams,
+    sceneId: SceneId,
+    layout: Layout,
+    view: ViewMode,
+    units: UnitSystem,
+    ledWallPitchMm: number,
+  ) => void
   patchOptics: (patch: Partial<OpticsParams>) => void
   setLens: (lensId: string) => void
+  /** Load a different venue, resetting the layout and bringing its suggested optics. */
+  setScene: (sceneId: SceneId) => void
   setView: (view: ViewMode) => void
   toggleView: () => void
   setSidebarOpen: (on: boolean) => void
@@ -79,6 +100,7 @@ interface SimState {
   addProp: (key: CatalogKey, position: Vec3, rotationY: number) => string
   removeProp: (id: string) => boolean
   setUnits: (units: UnitSystem) => void
+  setLedWallPitchMm: (pitchMm: number) => void
   setQuality: (quality: QualityTier) => void
   setDebug: (debug: DebugMode) => void
   setBlurEnabled: (on: boolean) => void
@@ -113,6 +135,8 @@ interface SimState {
  */
 export const useSimStore = create<SimState>((set, get) => ({
   optics: DEFAULT_OPTICS,
+  sceneId: DEFAULT_SCENE_ID,
+  ledWallPitchMm: 2.6,
   layout: {},
   added: [],
   view: 'thirdPerson',
@@ -133,10 +157,26 @@ export const useSimStore = create<SimState>((set, get) => ({
   roundnessOverride: null,
   stats: null,
 
-  hydrate: (optics, layout, view, units) => set({ optics, layout, view, units }),
+  hydrate: (optics, sceneId, layout, view, units, ledWallPitchMm) =>
+    set({ optics, sceneId, layout, view, units, ledWallPitchMm }),
 
   patchOptics: (patch) =>
     set((s) => ({ optics: normalizeOpticsParams({ ...s.optics, ...patch }) })),
+
+  // Switching venue clears the per-prop overrides and session props -- they key
+  // on ids that belong to the old scene -- and pulls in the new scene's
+  // suggested glass so an 80 m stage does not open on a 50 mm lens focused at
+  // 4 m. Selection is dropped for the same reason: it may name a gone prop.
+  setScene: (sceneId) =>
+    set((s) => ({
+      sceneId,
+      layout: {},
+      added: [],
+      hoveredPropId: null,
+      selectedPropId: null,
+      draggingPropId: null,
+      optics: normalizeOpticsParams({ ...s.optics, ...getSceneDef(sceneId).suggestedOptics }),
+    })),
 
   // Switching lens re-clamps focal length and aperture to what the new lens
   // can reach, which is why it goes through the normalizer rather than a
@@ -165,8 +205,9 @@ export const useSimStore = create<SimState>((set, get) => ({
 
   addProp: (key, position, rotationY) => {
     const s = get()
+    const scene = getSceneSpec(s.sceneId)
     const taken = new Set([
-      ...DEFAULT_SCENE.props.map((p) => p.id),
+      ...scene.props.map((p) => p.id),
       ...s.added.map((p) => p.id),
     ])
     const prop = instantiate(key, position, rotationY, taken)
@@ -176,7 +217,7 @@ export const useSimStore = create<SimState>((set, get) => ({
       ...prop,
       transform: {
         ...prop.transform,
-        position: clampToRoom(DEFAULT_SCENE.room, prop.footprintRadiusM, prop.transform.position),
+        position: clampToRoom(scene.room, prop.footprintRadiusM, prop.transform.position),
       },
     }
     set({ added: [...s.added, clamped] })
@@ -191,6 +232,10 @@ export const useSimStore = create<SimState>((set, get) => ({
     return true
   },
   setUnits: (units) => set({ units }),
+  // Clamped to the span of real fine-pitch through touring panels; a zero or
+  // negative pitch would make the moiré ratio meaningless.
+  setLedWallPitchMm: (pitchMm) =>
+    set({ ledWallPitchMm: Math.min(20, Math.max(0.5, Number.isFinite(pitchMm) ? pitchMm : 2.6)) }),
   setQuality: (quality) => set({ quality }),
   setDebug: (debug) => set({ debug }),
   setBlurEnabled: (blurEnabled) => set({ blurEnabled }),
@@ -206,7 +251,7 @@ export const useSimStore = create<SimState>((set, get) => ({
       layout: moveInLayout(
         s.layout,
         id,
-        clampToRoom(DEFAULT_SCENE.room, footprintRadiusM, position),
+        clampToRoom(getSceneSpec(s.sceneId).room, footprintRadiusM, position),
       ),
     })),
 

@@ -5,7 +5,12 @@ import { sensorAspect } from '#/lib/optics/formats.ts'
 import type { OpticsParams } from '#/lib/optics/params.ts'
 import { deriveOptics } from './state/derive.ts'
 import type { DerivedOptics } from './state/derive.ts'
-import { layoutFromSearch, opticsFromSearch } from './state/searchSchema.ts'
+import {
+  layoutFromSearch,
+  opticsFromSearch,
+  pitchFromSearch,
+  sceneFromSearch,
+} from './state/searchSchema.ts'
 import { useElementSize } from './state/useElementSize.ts'
 import { useKeyboardShortcuts } from './state/useKeyboardShortcuts.ts'
 import { useSimStore } from './state/useSimStore.ts'
@@ -16,6 +21,7 @@ import { DebugPanel } from './ui/DebugPanel.tsx'
 import { LimitationsPanel } from './ui/LimitationsPanel.tsx'
 import { ShortcutsHint } from './ui/ShortcutsHint.tsx'
 import { DofReadout } from './ui/DofReadout.tsx'
+import { MoireReadout } from './ui/MoireReadout.tsx'
 import { ScenePanel } from './ui/ScenePanel.tsx'
 import { SimTopBar } from './ui/SimTopBar.tsx'
 import { SimulatorStage } from './SimulatorStage.tsx'
@@ -106,7 +112,14 @@ export default function Simulator() {
   useEffect(() => {
     useSimStore
       .getState()
-      .hydrate(opticsFromSearch(search), layoutFromSearch(search), search.view, search.units)
+      .hydrate(
+        opticsFromSearch(search),
+        sceneFromSearch(search),
+        layoutFromSearch(search),
+        search.view,
+        search.units,
+        pitchFromSearch(search),
+      )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -124,6 +137,7 @@ export default function Simulator() {
           <aside className="sim-side">
             <ControlPanel derived={derived} />
             <DofReadout derived={derived} units={units} />
+            <MoireReadout derived={derived} units={units} />
             <ScenePanel units={units} />
             <DebugPanel derived={derived} />
             <LimitationsPanel />

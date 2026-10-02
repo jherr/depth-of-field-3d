@@ -1,15 +1,24 @@
-import { DEFAULT_SCENE, CAMERA_PROP_ID, SUBJECT_PROP_ID, draggableProps, getProp } from '#/lib/scene/defaultScene.ts'
+import { CAMERA_PROP_ID, SUBJECT_PROP_ID, draggableProps, getProp } from '#/lib/scene/defaultScene.ts'
+import { SCENE_DEFS, getSceneSpec } from '#/lib/scene/scenes.ts'
+import type { SceneSpec } from '#/lib/scene/types.ts'
 import { formatDistance } from '#/lib/optics/format.ts'
 import type { UnitSystem } from '#/lib/optics/format.ts'
 import { useSimStore } from '#/features/dof/state/useSimStore.ts'
-import { Check, Group } from './controls.tsx'
+import { Check, Field, Group } from './controls.tsx'
 
-function transformOf(layout: ReturnType<typeof useSimStore.getState>['layout'], id: string) {
-  return layout[id] ?? getProp(DEFAULT_SCENE, id)!.transform
+function transformOf(
+  layout: ReturnType<typeof useSimStore.getState>['layout'],
+  scene: SceneSpec,
+  id: string,
+) {
+  const fallback = { position: [0, 0, 0] as const, rotationY: 0, scale: 1 }
+  return layout[id] ?? getProp(scene, id)?.transform ?? fallback
 }
 
 export function ScenePanel({ units }: { units: UnitSystem }) {
   const layout = useSimStore((s) => s.layout)
+  const sceneId = useSimStore((s) => s.sceneId)
+  const setScene = useSimStore((s) => s.setScene)
   const selected = useSimStore((s) => s.selectedPropId)
   const setSelected = useSimStore((s) => s.setSelected)
   const setHovered = useSimStore((s) => s.setHovered)
@@ -23,8 +32,9 @@ export function ScenePanel({ units }: { units: UnitSystem }) {
   const setShowDofVolume = useSimStore((s) => s.setShowDofVolume)
   const setShowRuler = useSimStore((s) => s.setShowRuler)
 
-  const camera = transformOf(layout, CAMERA_PROP_ID)
-  const subject = transformOf(layout, SUBJECT_PROP_ID)
+  const scene = getSceneSpec(sceneId)
+  const camera = transformOf(layout, scene, CAMERA_PROP_ID)
+  const subject = transformOf(layout, scene, SUBJECT_PROP_ID)
 
   /**
    * Axial distance, not radial: the distance that matters optically is the
@@ -47,6 +57,21 @@ export function ScenePanel({ units }: { units: UnitSystem }) {
 
   return (
     <Group title="Scene">
+      <Field label="Venue">
+        <select
+          className="sim-select"
+          value={sceneId}
+          aria-label="Venue"
+          onChange={(e) => setScene(e.currentTarget.value as typeof sceneId)}
+        >
+          {SCENE_DEFS.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.label}
+            </option>
+          ))}
+        </select>
+      </Field>
+
       <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginBottom: '0.55rem' }}>
         <button
           type="button"
@@ -81,7 +106,7 @@ export function ScenePanel({ units }: { units: UnitSystem }) {
         onMouseLeave={() => setHovered(null)}
       >
         <option value="">Select an object…</option>
-        {draggableProps(DEFAULT_SCENE).map((p) => (
+        {draggableProps(scene).map((p) => (
           <option key={p.id} value={p.id}>
             {p.label}
           </option>
