@@ -39,7 +39,10 @@ export function ControlPanel({ derived }: { derived: DerivedOptics }) {
     stops.findIndex((s) => Math.abs(s - params.fNumber) < 1e-9),
   )
   const prime = isPrime(lens)
-  const focusMax = Math.min(MAX_FOCUS_DISTANCE_M, 100)
+  // Reaches past 200 ft (61 m) so a long lens can be focused short of a distant
+  // LED wall. The slider is logarithmic, so the extra reach costs no precision
+  // at the near end.
+  const focusMax = Math.min(MAX_FOCUS_DISTANCE_M, 300)
 
   return (
     <>

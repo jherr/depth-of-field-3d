@@ -30,6 +30,20 @@ export type ProceduralShape =
     }
   | { readonly type: 'depthRuler'; readonly lengthM: number; readonly tickSpacingM: number }
   | { readonly type: 'tripodCamera'; readonly columnHeightM: number }
+  | {
+      /**
+       * A video LED wall: a bright, emissive panel driven by a gradient.
+       *
+       * `pixelPitchMm` is the centre-to-centre spacing of the physical emitters.
+       * It drives no geometry -- the panel renders as one smooth plane -- but it
+       * is the number the moiré readout compares the defocus blur against, so it
+       * lives on the prop as the single source of truth for the wall's pitch.
+       */
+      readonly type: 'ledWall'
+      readonly widthM: number
+      readonly heightM: number
+      readonly pixelPitchMm: number
+    }
 
 export type PropGeometry =
   | { readonly kind: 'procedural'; readonly shape: ProceduralShape }

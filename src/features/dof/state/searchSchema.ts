@@ -2,6 +2,8 @@ import type { UnitSystem } from '#/lib/optics/format.ts'
 import { encodeOpticsParams, normalizeOpticsParams } from '#/lib/optics/params.ts'
 import type { OpticsParams } from '#/lib/optics/params.ts'
 import { decodeLayout } from '#/lib/scene/layout.ts'
+import { DEFAULT_SCENE_ID, isSceneId } from '#/lib/scene/scenes.ts'
+import type { SceneId } from '#/lib/scene/scenes.ts'
 import type { ViewMode } from './useSimStore.ts'
 
 export interface SimSearch {
@@ -14,6 +16,9 @@ export interface SimSearch {
   readonly diff: number
   readonly view: ViewMode
   readonly units: UnitSystem
+  readonly scene: SceneId
+  /** LED pixel pitch for the moiré readout, millimetres. */
+  readonly pitch: number
   readonly layout: string
 }
 
@@ -43,8 +48,16 @@ export function normalizeSimSearch(raw: Record<string, unknown>): SimSearch {
     view:
       raw.view === 'inCamera' ? 'inCamera' : raw.view === 'split' ? 'split' : 'thirdPerson',
     units: raw.units === 'imperial' ? 'imperial' : 'metric',
+    scene: isSceneId(raw.scene) ? raw.scene : DEFAULT_SCENE_ID,
+    pitch: normalizePitchMm(raw.pitch),
     layout: typeof raw.layout === 'string' ? raw.layout : '',
   }
+}
+
+/** Keep the pitch inside the physical span of real panels; default 2.6 mm. */
+function normalizePitchMm(raw: unknown): number {
+  const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : NaN
+  return Number.isFinite(n) ? Math.min(20, Math.max(0.5, n)) : 2.6
 }
 
 export function opticsFromSearch(search: SimSearch): OpticsParams {
@@ -53,4 +66,12 @@ export function opticsFromSearch(search: SimSearch): OpticsParams {
 
 export function layoutFromSearch(search: SimSearch) {
   return decodeLayout(search.layout)
+}
+
+export function sceneFromSearch(search: SimSearch): SceneId {
+  return isSceneId(search.scene) ? search.scene : DEFAULT_SCENE_ID
+}
+
+export function pitchFromSearch(search: SimSearch): number {
+  return normalizePitchMm(search.pitch)
 }

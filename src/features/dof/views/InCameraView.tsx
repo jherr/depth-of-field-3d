@@ -4,7 +4,11 @@ import { useThree } from '@react-three/fiber'
 import type { DerivedOptics } from '#/features/dof/state/derive.ts'
 import type { CameraPose } from './cameraRig.ts'
 
-/** Tight clip range: the whole scene is one room, so this maximises depth precision. */
+/**
+ * Near clip, shared by every scene. The far clip is per-scene (an 80 m stage
+ * needs far more reach than a 9 m room) and arrives as a prop; this is the
+ * fallback for callers that do not pass one.
+ */
 export const CAMERA_NEAR_M = 0.05
 export const CAMERA_FAR_M = 40
 
@@ -23,9 +27,11 @@ export const CAMERA_FAR_M = 40
 export function InCameraView({
   derived,
   pose,
+  farM = CAMERA_FAR_M,
 }: {
   derived: DerivedOptics
   pose: CameraPose
+  farM?: number
 }) {
   const set = useThree((s) => s.set)
   const defaultCamera = useThree((s) => s.camera)
@@ -38,13 +44,13 @@ export function InCameraView({
     // which is what keeps the millimetres-to-pixels conversion valid.
     camera.aspect = derived.fov.aspect
     camera.near = CAMERA_NEAR_M
-    camera.far = CAMERA_FAR_M
+    camera.far = farM
     camera.setFocalLength(derived.params.focalLengthMm)
     camera.position.set(pose.position[0], pose.position[1], pose.position[2])
     camera.rotation.set(0, pose.rotationY, 0)
     camera.updateProjectionMatrix()
     camera.updateMatrixWorld()
-  }, [camera, derived.fov, derived.params.focalLengthMm, pose])
+  }, [camera, derived.fov, derived.params.focalLengthMm, pose, farM])
 
   useEffect(() => {
     const previous = defaultCamera

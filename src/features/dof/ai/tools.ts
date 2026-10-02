@@ -5,10 +5,15 @@ import { CATALOG, CATALOG_KEYS } from '#/lib/scene/catalog.ts'
 import type { CatalogKey } from '#/lib/scene/catalog.ts'
 import { DEFAULT_SCENE } from '#/lib/scene/defaultScene.ts'
 import { composeScene } from '#/lib/scene/layout.ts'
+import { SCENE_DEFS, getSceneSpec } from '#/lib/scene/scenes.ts'
+import type { SceneId } from '#/lib/scene/scenes.ts'
+import type { SceneProp } from '#/lib/scene/types.ts'
 import { LENS_PRESETS } from '#/lib/optics/lenses.ts'
 import { SENSOR_FORMAT_LIST } from '#/lib/optics/formats.ts'
+import { assessMoire } from '#/lib/optics/moire.ts'
 import { deriveOptics } from '#/features/dof/state/derive.ts'
 import { useSimStore } from '#/features/dof/state/useSimStore.ts'
+import { axialDistanceM, cameraPoseFromLayout } from '#/features/dof/views/cameraRig.ts'
 import { captureStage } from './snapshot.ts'
 import type { StageMode } from './snapshot.ts'
 
@@ -66,12 +71,28 @@ const propSchema = z.object({
   addedThisSession: z.boolean(),
 })
 
+/** The moiré risk read-out, present only when the scene has an LED wall. */
+const moireSchema = z.object({
+  pixelPitchMm: z.number(),
+  wallDistanceM: z.number(),
+  blurMm: z.number().describe('Defocus blur diameter at the wall, in real-world mm.'),
+  coveragePixels: z
+    .number()
+    .describe('How many LED pixels one blur disc spans. At least 2 suppresses moiré.'),
+  risk: z.string().describe('"safe", "marginal" or "risk".'),
+  safeFNumber: z
+    .number()
+    .nullable()
+    .describe('You can stop down to here and still avoid moiré; null if focus is on the wall.'),
+})
+
 export const describeSceneToolDef = toolDefinition({
   name: 'describeScene',
   description:
-    'Read the current state of the room: every prop with its id and position, the camera settings, and the resulting depth of field. Call this before moving or changing anything, so the ids and distances you use are real.',
+    'Read the current state of the room: which venue is loaded, every prop with its id and position, the camera settings, the resulting depth of field, and — on the LED-wall stage — the moiré risk. Call this before moving or changing anything, so the ids and distances you use are real.',
   inputSchema: z.object({}),
   outputSchema: z.object({
+    scene: z.string().describe('The id of the loaded venue.'),
     room: z.object({ widthM: z.number(), depthM: z.number(), heightM: z.number() }),
     camera: z.object({
       lens: z.string(),
@@ -88,6 +109,7 @@ export const describeSceneToolDef = toolDefinition({
       totalM: z.number(),
       hyperfocalM: z.number(),
     }),
+    moire: moireSchema.nullable().describe('Null unless the scene has an LED wall.'),
     props: z.array(propSchema),
     view: z.string(),
   }),
@@ -231,6 +253,42 @@ export const snapshotToolDef = toolDefinition({
   }),
 })
 
+export const setSceneToolDef = toolDefinition({
+  name: 'setScene',
+  description: `Load a different venue. This resets the prop layout and brings sensible default optics for the scene, so read the result back. Scenes: ${SCENE_DEFS.map(
+    (d) => `"${d.id}" (${d.label} — ${d.description})`,
+  ).join('; ')}.`,
+  inputSchema: z.object({
+    sceneId: z.enum(SCENE_DEFS.map((d) => d.id) as [SceneId, ...Array<SceneId>]),
+  }),
+  outputSchema: z.object({
+    scene: z.string(),
+    camera: z.object({
+      lens: z.string(),
+      focalLengthMm: z.number(),
+      fNumber: z.number(),
+      focusDistanceM: z.number(),
+      sensor: z.string(),
+    }),
+    moire: moireSchema.nullable(),
+  }),
+})
+
+export const setLedWallToolDef = toolDefinition({
+  name: 'setLedWall',
+  description:
+    'Set the LED wall pixel pitch (centre-to-centre LED spacing, in millimetres) that the moiré check compares the defocus blur against. Common walls run 1.2–3.9 mm. Only meaningful on a scene that has an LED wall.',
+  inputSchema: z.object({
+    pixelPitchMm: z.number().describe('LED pixel pitch in millimetres, e.g. 2.6.'),
+  }),
+  outputSchema: z.object({
+    ok: z.boolean(),
+    reason: z.string().optional(),
+    pixelPitchMm: z.number().optional(),
+    moire: moireSchema.nullable().optional(),
+  }),
+})
+
 export const TOOL_DEFS = [
   describeSceneToolDef,
   addPropToolDef,
@@ -239,6 +297,8 @@ export const TOOL_DEFS = [
   setCameraToolDef,
   aimCameraAtToolDef,
   focusOnToolDef,
+  setSceneToolDef,
+  setLedWallToolDef,
   snapshotToolDef,
 ]
 
@@ -257,7 +317,43 @@ const roundVec = (v: readonly [number, number, number]) =>
 
 function currentScene() {
   const s = useSimStore.getState()
-  return composeScene(s.added, s.layout)
+  return composeScene(s.added, s.layout, getSceneSpec(s.sceneId))
+}
+
+function findLedWall(props: readonly SceneProp[]): SceneProp | undefined {
+  return props.find(
+    (p) => p.geometry.kind === 'procedural' && p.geometry.shape.type === 'ledWall',
+  )
+}
+
+/**
+ * The moiré assessment for the current shot, or null when the scene has no LED
+ * wall. Shared by describeScene and the LED-wall tools so the model always sees
+ * the same number the on-screen readout shows.
+ */
+function moireSummary() {
+  const s = useSimStore.getState()
+  const wall = findLedWall(currentScene().props)
+  if (!wall) return null
+  const pose = cameraPoseFromLayout(s.layout, getSceneSpec(s.sceneId))
+  const distanceM = axialDistanceM(pose, wall.transform.position)
+  const d = derived()
+  const a = assessMoire(
+    {
+      focalLengthMm: d.params.focalLengthMm,
+      fNumber: d.params.fNumber,
+      focusDistanceM: d.params.focusDistanceM,
+    },
+    { distanceM, pitchMm: s.ledWallPitchMm },
+  )
+  return {
+    pixelPitchMm: round(s.ledWallPitchMm, 2),
+    wallDistanceM: round(distanceM, 2),
+    blurMm: round(a.blurMm, 2),
+    coveragePixels: round(a.ratio, 2),
+    risk: a.risk,
+    safeFNumber: a.safeFNumber === null ? null : round(a.safeFNumber, 1),
+  }
 }
 
 function derived() {
@@ -306,6 +402,7 @@ const describeScene = describeSceneToolDef.client(() => {
   const rig = cameraRig()
 
   return {
+    scene: s.sceneId,
     room: {
       widthM: scene.room.widthM,
       depthM: scene.room.depthM,
@@ -324,6 +421,7 @@ const describeScene = describeSceneToolDef.client(() => {
       ...dofSummary(),
       hyperfocalM: round(d.dof.hyperfocalM, 2),
     },
+    moire: moireSummary(),
     props: scene.props.map((p) => ({
       id: p.id,
       label: p.label,
@@ -463,6 +561,38 @@ const focusOn = focusOnToolDef.client((args) => {
   return { ok: true, id: args.id, focusDistanceM, depthOfField: dofSummary() }
 })
 
+const setScene = setSceneToolDef.client((args) => {
+  useSimStore.getState().setScene(args.sceneId as SceneId)
+  const d = derived()
+  return {
+    scene: args.sceneId,
+    camera: {
+      lens: d.lens.label,
+      focalLengthMm: d.params.focalLengthMm,
+      fNumber: d.params.fNumber,
+      focusDistanceM: d.params.focusDistanceM,
+      sensor: d.sensor.label,
+    },
+    moire: moireSummary(),
+  }
+})
+
+const setLedWall = setLedWallToolDef.client((args) => {
+  if (!findLedWall(currentScene().props)) {
+    return {
+      ok: false,
+      reason:
+        'the current scene has no LED wall. Switch to the LED-wall stage with setScene first.',
+    }
+  }
+  useSimStore.getState().setLedWallPitchMm(args.pixelPitchMm)
+  return {
+    ok: true,
+    pixelPitchMm: useSimStore.getState().ledWallPitchMm,
+    moire: moireSummary(),
+  }
+})
+
 /**
  * Returns content parts rather than a plain object, which is what makes the
  * image visible to the model instead of being stringified into the transcript.
@@ -490,5 +620,7 @@ export const SIM_TOOLS = [
   setCamera,
   aimCameraAt,
   focusOn,
+  setScene,
+  setLedWall,
   snapshot,
 ]

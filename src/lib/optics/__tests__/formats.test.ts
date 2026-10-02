@@ -11,6 +11,7 @@ import type { SensorFormatId } from '#/lib/optics/formats.ts'
 const ALL_IDS: SensorFormatId[] = [
   'mf-4433',
   'ff',
+  's35',
   'apsc-135',
   'apsc-16',
   'mft',
@@ -46,6 +47,7 @@ describe('SENSOR_FORMATS', () => {
     expect(SENSOR_FORMATS['apsc-16'].cocLimitMm).toBe(0.019)
     expect(SENSOR_FORMATS.mft.cocLimitMm).toBe(0.015)
     expect(SENSOR_FORMATS['one-inch'].cocLimitMm).toBe(0.011)
+    expect(SENSOR_FORMATS.s35.cocLimitMm).toBe(0.023)
     expect(SENSOR_FORMATS['mf-4433'].cocLimitMm).toBe(0.037)
     expect(SENSOR_FORMATS['phone-1p28'].cocLimitMm).toBe(0.008)
   })

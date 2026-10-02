@@ -3,6 +3,7 @@ import { FULL_FRAME_DIAGONAL_MM } from './units.ts'
 export type SensorFormatId =
   | 'mf-4433'
   | 'ff'
+  | 's35'
   | 'apsc-135'
   | 'apsc-16'
   | 'mft'
@@ -73,7 +74,12 @@ function defineFormat(
 
 export const SENSOR_FORMATS: Readonly<Record<SensorFormatId, SensorFormat>> = {
   'mf-4433': defineFormat('mf-4433', 'Medium format 44x33', 'MF 44x33', 43.8, 32.9, 0.037),
-  ff: defineFormat('ff', 'Full frame 36x24', 'Full frame', 36, 24, 0.03),
+  ff: defineFormat('ff', 'Full frame 36x24 (FF cine)', 'Full frame', 36, 24, 0.03),
+  // Super 35 is the workhorse digital-cinema gate (ARRI / RED / Sony FX).
+  // There is no single published CoC convention the way there is for stills
+  // formats, so 0.023 is chosen to sit between APS-C and full frame on the same
+  // size-ordered curve the other formats follow.
+  s35: defineFormat('s35', 'Super 35 cinema', 'Super 35', 24.89, 18.66, 0.023),
   'apsc-135': defineFormat('apsc-135', 'APS-C 1.5x (Nikon / Sony)', 'APS-C 1.5x', 23.5, 15.6, 0.02),
   'apsc-16': defineFormat('apsc-16', 'APS-C 1.6x (Canon)', 'APS-C 1.6x', 22.3, 14.9, 0.019),
   mft: defineFormat('mft', 'Micro Four Thirds', 'MFT', 17.3, 13.0, 0.015),
@@ -84,6 +90,7 @@ export const SENSOR_FORMATS: Readonly<Record<SensorFormatId, SensorFormat>> = {
 export const SENSOR_FORMAT_LIST: readonly SensorFormat[] = [
   SENSOR_FORMATS['mf-4433'],
   SENSOR_FORMATS.ff,
+  SENSOR_FORMATS.s35,
   SENSOR_FORMATS['apsc-135'],
   SENSOR_FORMATS['apsc-16'],
   SENSOR_FORMATS.mft,

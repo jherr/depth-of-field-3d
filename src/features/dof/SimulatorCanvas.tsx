@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { Canvas } from '@react-three/fiber'
 import { sensorAspect } from '#/lib/optics/formats.ts'
 import { computeSensorViewport } from '#/lib/scene/viewport.ts'
+import { getSceneDef, getSceneSpec } from '#/lib/scene/scenes.ts'
 import type { DerivedOptics } from './state/derive.ts'
 import type { Size } from './state/useElementSize.ts'
 import { useSimStore } from './state/useSimStore.ts'
@@ -35,9 +36,14 @@ export function SimulatorCanvas({
   mode: 'thirdPerson' | 'inCamera'
 }) {
   const layout = useSimStore((s) => s.layout)
+  const sceneId = useSimStore((s) => s.sceneId)
   const inCamera = mode === 'inCamera'
 
-  const pose = useMemo(() => cameraPoseFromLayout(layout), [layout])
+  const sceneDef = useMemo(() => getSceneDef(sceneId), [sceneId])
+  const pose = useMemo(
+    () => cameraPoseFromLayout(layout, getSceneSpec(sceneId)),
+    [layout, sceneId],
+  )
 
   const rect = useMemo(() => {
     if (!inCamera) return { left: 0, top: 0, width: size.width, height: size.height }
@@ -58,15 +64,23 @@ export function SimulatorCanvas({
   return (
     <Canvas
       style={{ position: 'absolute', ...rect }}
+      // Keyed by scene so switching venue remounts with that venue's framing
+      // rather than stranding the orbit camera at the previous scene's vantage.
+      key={sceneId}
       /*
        * Default orbit vantage: outside the room, three-quarters on, high enough
        * to look down the optical axis. The room's walls are single-sided and
        * face inward, so viewing from outside reads as a cutaway -- which is
        * what you want from a diagnostic view. Placed roughly perpendicular to
        * the lens axis so the in-focus slab is seen edge-on and its depth is
-       * actually judgeable.
+       * actually judgeable. The vantage is per-scene; see SceneViewHints.
        */
-      camera={{ position: [6.4, 3.6, 5.6], fov: 45, near: 0.05, far: 120 }}
+      camera={{
+        position: [sceneDef.view.orbitStart[0], sceneDef.view.orbitStart[1], sceneDef.view.orbitStart[2]],
+        fov: 45,
+        near: 0.05,
+        far: sceneDef.view.orbitFarM,
+      }}
       dpr={[1, 2]}
       shadows={false}
       gl={{
@@ -106,11 +120,16 @@ export function SimulatorCanvas({
 
       {inCamera ? (
         <>
-          <InCameraView derived={derived} pose={pose} />
+          <InCameraView derived={derived} pose={pose} farM={sceneDef.view.cameraFarM} />
           <DofPipeline derived={derived} />
         </>
       ) : (
-        <ThirdPersonView derived={derived} pose={pose} />
+        <ThirdPersonView
+          derived={derived}
+          pose={pose}
+          room={sceneDef.spec.room}
+          view={sceneDef.view}
+        />
       )}
     </Canvas>
   )

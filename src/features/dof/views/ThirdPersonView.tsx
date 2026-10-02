@@ -4,7 +4,8 @@ import { OrbitControls } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
 import { fieldOfView } from '#/lib/optics/fov.ts'
 import type { DerivedOptics } from '#/features/dof/state/derive.ts'
-import { DEFAULT_SCENE } from '#/lib/scene/defaultScene.ts'
+import type { SceneViewHints } from '#/lib/scene/scenes.ts'
+import type { RoomSpec } from '#/lib/scene/types.ts'
 import { useSimStore } from '#/features/dof/state/useSimStore.ts'
 import { FrustumSlab } from './FrustumSlab.tsx'
 import type { CameraPose } from './cameraRig.ts'
@@ -19,9 +20,13 @@ import type { CameraPose } from './cameraRig.ts'
 export function ThirdPersonView({
   derived,
   pose,
+  room,
+  view,
 }: {
   derived: DerivedOptics
   pose: CameraPose
+  room: RoomSpec
+  view: SceneViewHints
 }) {
   const camera = useThree((s) => s.camera)
   const size = useThree((s) => s.size)
@@ -30,16 +35,17 @@ export function ThirdPersonView({
   const units = useSimStore((s) => s.units)
 
   // The orbit camera is a viewing tool, not the subject of the simulation, so
-  // it uses a plain wide-ish FOV rather than the lens under test.
+  // it uses a plain wide-ish FOV rather than the lens under test. Its far plane
+  // is per-scene: an 80 m stage would clip against the 9 m room's value.
   useEffect(() => {
     if (camera instanceof THREE.PerspectiveCamera) {
       camera.fov = 45
       camera.near = 0.05
-      camera.far = 120
+      camera.far = view.orbitFarM
       camera.aspect = size.width / Math.max(1, size.height)
       camera.updateProjectionMatrix()
     }
-  }, [camera, size.width, size.height])
+  }, [camera, size.width, size.height, view.orbitFarM])
 
   // The frustum drawing uses the SENSOR's field of view, which is the whole
   // point: this shape is a claim about what the in-camera view will show.
@@ -51,19 +57,18 @@ export function ThirdPersonView({
   // Clip the drawing at the far wall rather than letting an infinite far limit
   // run off to the horizon.
   const maxDrawM = useMemo(() => {
-    const room = DEFAULT_SCENE.room
     const dx = pose.forward[0] === 0 ? Infinity : Math.abs((room.widthM / 2) / pose.forward[0])
     const dz = pose.forward[2] === 0 ? Infinity : Math.abs((room.depthM / 2) / pose.forward[2])
     return Math.max(1.5, Math.min(room.depthM, Math.min(dx, dz) + room.depthM / 2))
-  }, [pose.forward])
+  }, [pose.forward, room.widthM, room.depthM])
 
   return (
     <>
       <OrbitControls
         makeDefault
-        target={[0, 1.05, 0.6]}
+        target={[view.orbitTarget[0], view.orbitTarget[1], view.orbitTarget[2]]}
         minDistance={1.2}
-        maxDistance={30}
+        maxDistance={view.orbitMaxDistance}
         maxPolarAngle={Math.PI * 0.495}
         enableDamping
         dampingFactor={0.08}

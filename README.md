@@ -15,10 +15,50 @@ moves — all from the same optics module. No blurred pixel traces back to a tun
 ```bash
 pnpm install      # postinstall fetches the 3D assets into public/models (see below)
 pnpm dev          # http://localhost:3000
-pnpm test:run     # 202 tests, mostly optics
+pnpm test:run     # 227 tests, mostly optics
 pnpm typecheck
 pnpm build && node .output/server/index.mjs
 ```
+
+## The LED wall & moiré
+
+A second venue, picked from the **Venue** dropdown or `?scene=led-wall`: a presenter a few metres in
+front of a video wall, shot on a long lens from the back of an 80 m stage. It answers a question from
+live events — *how shallow does the depth of field have to be to throw an LED wall far enough out of
+focus that its pixel grid stops beating against the camera sensor?* The **100–800 mm** cine zoom and
+the Super 35 / full-frame-cine sensors are here for the same reason: a 600 mm lens on full frame
+frames a person tightly from 45 m back.
+
+The physics is one comparison, both quantities in real-world millimetres **at the wall**: the defocus
+blur diameter versus the LED pixel pitch. The **LED wall moiré** readout reports it as *coverage* —
+how many LED pixels one blur disc spans. Below ~1 the blur is narrower than a pixel and the grid
+aliases; **2 or more** smears it below the frequency that moirés. The wall also carries a synthesized
+overlay: colour-fringed interference bands that fade in as coverage drops and dissolve as the wall
+defocuses. That overlay is a **stylised cue, not a sampled beat** — real moiré is interference between
+the panel grid and the sensor's photosites, which a rasteriser with its own pixel grid cannot
+reproduce, so its strength is driven by the same coverage number the readout shows rather than by the
+render's pixels.
+
+### Forcing the moiré, to see it
+
+Ask the assistant (it needs `ANTHROPIC_API_KEY` — see [The assistant](#the-assistant)):
+
+> Switch to the LED wall stage. I want to deliberately provoke the worst-case LED-wall moiré so I can
+> see it on screen. Set the wall to a coarse 3.9 mm pixel pitch, stop the lens all the way down to
+> f/22, and focus the lens right on the LED wall itself (not the presenter) so the wall is razor
+> sharp. Then tell me the moiré coverage number and take an in-camera snapshot.
+
+Without a key, the same three levers are a couple of drags in the sidebar, on the **LED wall stage**:
+
+1. **Aperture → f/22.** Stopping down deepens the depth of field and pulls the wall *into* focus —
+   the opposite of what you want on a real shoot, which is exactly the lesson.
+2. **Focus distance → ~48 m**, onto the wall rather than the presenter. Coverage falls toward 0× and
+   the bands come up to full strength.
+3. Optional: **Pixel pitch → 3.9 mm**, a coarser panel that aliases more readily.
+
+Reverse it — open the aperture wide, focus back on the presenter — and the wall goes soft as the bands
+melt away. The badge tracks it the whole time, green **Safe** ↔ red **Moiré likely**, off the same
+number the picture is drawn from.
 
 ## The assets
 

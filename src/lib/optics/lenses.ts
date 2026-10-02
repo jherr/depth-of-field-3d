@@ -25,8 +25,9 @@ export interface LensPreset {
   readonly nativeFormats: readonly SensorFormatId[]
 }
 
-const FF: readonly SensorFormatId[] = ['mf-4433', 'ff', 'apsc-135', 'apsc-16']
+const FF: readonly SensorFormatId[] = ['mf-4433', 'ff', 's35', 'apsc-135', 'apsc-16']
 const CROP: readonly SensorFormatId[] = ['apsc-135', 'apsc-16', 'mft']
+const CINE: readonly SensorFormatId[] = ['ff', 's35', 'apsc-135']
 
 /**
  * Blade counts and minimum focus distances are taken from published
@@ -132,6 +133,23 @@ export const LENS_PRESETS: readonly LensPreset[] = [
     bladesAreRounded: true,
     minFocusDistanceM: 0.38,
     nativeFormats: FF,
+  },
+  {
+    id: 'cine-100-800',
+    label: '100-800mm T4-8 broadcast super-tele',
+    // The long-throw box lens a live-events camera uses to shoot a presenter
+    // from the back of a venue. The reach is the whole point: at 50-200 ft a
+    // shallow depth of field is what pushes an LED wall far enough out of focus
+    // to kill moiré. Aperture ramps from ~T4 wide to ~T8 at 800 mm, as these
+    // zooms do.
+    focalRangeMm: [100, 800],
+    maxApertureWide: 4,
+    maxApertureTele: 8,
+    minAperture: 22,
+    apertureBlades: 11,
+    bladesAreRounded: true,
+    minFocusDistanceM: 2.5,
+    nativeFormats: CINE,
   },
   {
     id: 'ef-70-200-2p8',
